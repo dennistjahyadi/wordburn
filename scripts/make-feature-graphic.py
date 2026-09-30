@@ -10,8 +10,8 @@ have is the one thing a screenshot cannot accidentally do.
 
 The type is the app's own. Spectral for the promise, which is the one thing
 Welcome is allowed to set in the caption serif, and Be Vietnam Pro for
-everything that is chrome. The words are ASO.md's words, so the graphic and the
-listing cannot drift apart.
+everything that is chrome. The words follow ASO.md's short description, so
+the graphic and the listing cannot drift apart.
 
 Play wants 1024 x 500, PNG or JPEG, no alpha, under 15 MB. The output is RGB
 for that reason. Play also crops and masks this image differently across its
@@ -59,8 +59,12 @@ def rounded(card: Image.Image, radius: int) -> Image.Image:
     return out
 
 
-def shot(name: str, height: int) -> Image.Image:
+def shot(name: str, height: int, crop: tuple[int, int] | None = None) -> Image.Image:
     src = Image.open(SHOTS / name).convert("RGB")
+    if crop:
+        # A listing capture carries the status bar and the gesture pill, which
+        # are the phone talking about itself.
+        src = src.crop((0, crop[0], src.size[0], crop[1]))
     width = round(src.size[0] * height / src.size[1])
     return rounded(src.resize((width, height), Image.LANCZOS), radius=14 * SS)
 
@@ -93,8 +97,9 @@ def main() -> None:
 
     # Panels. In front, the video's own rectangle with the caption burned into
     # it — the thing the user gets, at a size that survives Play scaling the
-    # graphic down. Behind it, a screen of the app, for what it is that did it.
-    app = shot("style.png", 396 * SS)
+    # graphic down. Behind it, the queue: since the repositioning the promise is
+    # volume, and a list of clips working through is the picture of it.
+    app = shot("listing/01-batch.png", 396 * SS, crop=(150, 2300))
     burned = shot("burned.png", 442 * SS)
     canvas.paste(app, (528 * SS, 58 * SS), app)
     canvas.paste(burned, (712 * SS, 29 * SS), burned)
@@ -105,16 +110,16 @@ def main() -> None:
             ACCENT, tracking=4 * SS)
 
     serif = font("Spectral-ExtraBold.ttf", 44)
-    draw.text((x, 192 * SS), "Captions that", font=serif, fill=PAPER)
-    draw.text((x, 244 * SS), "look edited.", font=serif, fill=PAPER)
+    draw.text((x, 192 * SS), "Caption every", font=serif, fill=PAPER)
+    draw.text((x, 244 * SS), "clip, not one.", font=serif, fill=PAPER)
 
     # The accent rule, clear of the descenders above it rather than reading as an
     # underline of the word it happens to sit beneath.
     draw.rounded_rectangle([x, 312 * SS, (x + 54 * SS), 315 * SS], radius=2 * SS, fill=ACCENT)
 
     body = font("BeVietnamPro-Medium.ttf", 17)
-    draw.text((x, 334 * SS), "Auto captions & subtitles for your video.", font=body, fill=MUTE)
-    draw.text((x, 360 * SS), "Offline, on-device, pay once.", font=body, fill=MUTE)
+    draw.text((x, 334 * SS), "Queue a batch, or cut shorts", font=body, fill=MUTE)
+    draw.text((x, 360 * SS), "from a long video.", font=body, fill=MUTE)
 
     canvas.resize((W, H), Image.LANCZOS).save(OUT, optimize=True)
     print(f"{OUT.relative_to(ROOT)}  {W} x {H}")

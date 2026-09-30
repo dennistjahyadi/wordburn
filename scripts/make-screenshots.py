@@ -44,17 +44,19 @@ ACCENT = (255, 224, 61)
 CROP_TOP, CROP_BOTTOM = 150, 3060
 
 # The headline is copy, not decoration — it is read far more often than the full
-# description. These are STORE-ASSETS.md's, with the style count corrected to
-# what `STYLE_PRESETS` actually holds.
+# description. Retaken on 2026-09-30 for the repositioning: the story is now
+# volume — a queue, auto clip, the dead air — then the editor that was always
+# there, then five languages. Every line is something the app does and none of
+# them is a speed claim; see ASO.md for why.
 SHEET = [
-    ("01-editor", "Captions, burned in"),
-    ("02-processing", "Transcribed on your phone"),
-    ("03-style", "Nine styles, word by word"),
-    ("04-word", "Fix a word without moving its timing"),
-    ("05-timing", "Drag the timing on the waveform"),
-    ("06-dictionary", "Teach it how you spell your name"),
-    ("07-export", "Full quality, straight to your gallery"),
-    ("08-home", "Pay once. No subscription."),
+    ("01-batch", "Queue your clips. Walk away."),
+    ("02-autoclip", "Find the clips worth posting"),
+    ("03-deadair", "Cut the dead air in one tap"),
+    ("04-editor", "Captions, word by word"),
+    ("05-style", "Eighteen styles, one look for every clip"),
+    ("06-languages", "Five languages"),
+    ("07-word", "Tap any word to fix it"),
+    ("08-export", "Full quality, straight to your gallery"),
 ]
 
 SS = 2  # drawn at 2x and downsampled once, so hairlines do not come out ragged

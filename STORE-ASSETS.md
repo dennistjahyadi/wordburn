@@ -210,9 +210,9 @@ empty space on the left.
 Then set, on the empty left:
 
 - Headline, Be Vietnam Pro ExtraBold, `#F2EFEC`, around 64 px, tight tracking:
-  **Captions that never leave your phone**
+  **Caption every clip, not one.**
 - Sub, Be Vietnam Pro Medium, `#9A928A`, around 30 px:
-  **Offline · on-device · pay once**
+  **Queue a batch, or cut shorts from a long video.**
 
 Both lines come from the short description in ASO.md, so the banner and the
 text below it say the same thing. Do not put the app name in the graphic — Play
@@ -229,31 +229,32 @@ and a takedown risk, so the pixels inside the phone are captured off the A54:
 adb exec-out screencap -p > shot-01.png
 ```
 
-Eight captures, in the order the listing should tell the story. The headline
-above each is copy, not decoration — it is read far more often than the full
-description:
+Eight captures, in the order the listing should tell the story. **Retaken on
+2026-09-30 for the repositioning** — volume first, then the editor, then the
+languages. The headline above each is copy, not decoration — it is read far
+more often than the full description:
 
 | # | Screen | Headline |
 |---|---|---|
-| 1 | Editor, box highlight mid-word | **Captions, burned in** |
-| 2 | Processing, progress running | **Transcribed on your phone** |
-| 3 | Style sheet, tiles live | **Eighteen styles, word by word** |
-| 4 | Word sheet open on a flagged word | **Fix a word without moving its timing** |
-| 5 | Timing sheet, waveform and handles | **Drag the timing on the waveform** |
-| 6 | Dictionary list | **Teach it how you spell your name** |
-| 7 | Export screen | **Full quality, straight to your gallery** |
-| 8 | Home with the free-tier line | **Pay once. No subscription.** |
+| 1 | Queue, two of five done, one rendering | **Queue your clips. Walk away.** |
+| 2 | Auto clip suggestions on the podcast demo | **Find the clips worth posting** |
+| 3 | Adjust sheet, Remove dead air on, 47 s → 37 s | **Cut the dead air in one tap** |
+| 4 | Editor, Focus mid-sentence | **Captions, word by word** |
+| 5 | Style sheet, tiles live | **Eighteen styles, one look for every clip** |
+| 6 | Language sheet | **Five languages** |
+| 7 | Word sheet on a flagged word | **Tap any word to fix it** |
+| 8 | Export screen | **Full quality, straight to your gallery** |
 
-All eight are taken. `scripts/make-screenshots.py` composes them; the captures it
-reads are in `store/shots/listing/`.
+`scripts/make-screenshots.py` composes them; the captures it reads are in
+`store/shots/listing/`, 1440 × 3120, taken on the `Wordburn_Shots` AVD (Pixel
+7 Pro profile, Android 16) with a Pro entitlement seeded, so no watermark is
+in them. The demo footage is `test-clips/demo/`: the 0:20 clip five times for
+the batch, and `make-demo-clip.py podcast` (5:24) for auto clip.
 
-**Shot 7 settles the monetization question by showing it.** The Export screen
-reads "1080 × 1920 · 30 fps · no watermark" and the free-tier line under it reads
-"3 free exports left", because that is what `free-tier.ts` does. ASO.md's full
-description still promises that "Free exports carry a small watermark in the
-corner", which this screenshot disproves in the same listing it sits in.
-PLAY-CONSOLE.md already carries the corrected description; **ASO.md is the file
-that still needs fixing before any of this is uploaded.**
+**The old set is gone for a reason, not for age.** Shot 8 read "Pay once. No
+subscription.", shot 2 "Transcribed on your phone", and the feature graphic
+"Offline, on-device, pay once." — three claims the app no longer makes, two of
+which are no longer true.
 
 Three things the device has to be put into first, none of them obvious:
 
@@ -313,8 +314,8 @@ animating the user's own words is the thing no competitor screenshot shows.
 ## Promo video thumbnail — 1280 × 720
 
 Only needed if a YouTube promo video gets made, which is optional and is the
-last thing to do. Same plate as the feature graphic at 16:9, with **Offline
-auto-captions** set in Be Vietnam Pro ExtraBold `#F2EFEC` at around 90 px on the
+last thing to do. Same plate as the feature graphic at 16:9, with **Caption every
+clip** set in Be Vietnam Pro ExtraBold `#F2EFEC` at around 90 px on the
 left. YouTube's own timestamp sits bottom-right; leave that corner empty.
 
 ## Before uploading
