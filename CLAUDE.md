@@ -363,7 +363,8 @@ properties rather than presets.
     fits the row count, and ran off both edges; the layout now also shrinks for
     width. **On a 2 GB emulator the model load killed every app on the
     device**, Wordburn included — the model is read whole into RAM — so the
-    download is not offered below 5.5 GB of physical memory.
+    download is not offered below 4.5 GiB of reported memory — a 6 GB phone
+    reports 5.3–5.8 GiB, a 4 GB one about 3.6.
     Emphasis learned the languages too: per-language stopwords, and German's
     capital letters no longer read as names.
 

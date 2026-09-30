@@ -44,10 +44,15 @@ export const MULTILINGUAL_MODEL: DownloadedModel = {
  * whisper.cpp in this build reads the whole file into RAM — nothing is mapped —
  * so the 874 MB model plus its working buffers peaks around 1.5 to 2 GB. On a
  * 2 GB emulator the system killed every app on the device the moment the model
- * loaded, Wordburn included. A 6 GB phone reports a little under 6 GB, hence
- * 5.5: the A54's smaller model is in, a 4 GB phone is out.
+ * loaded, Wordburn included.
+ *
+ * The line is drawn between 4 GB and 6 GB phones, on what they *report*: the
+ * kernel keeps some, so a 6 GB device says 5.3 to 5.8 GiB (the 6 GB test
+ * emulator said 5.79) and a 4 GB one about 3.6. 4.5 GiB keeps the smaller
+ * A54 in and a 4 GB phone out; a line at 5.5 would have shut out some of the
+ * phones it was meant to admit.
  */
-export const MIN_MEMORY_BYTES = 5.5 * 1024 * 1024 * 1024;
+export const MIN_MEMORY_BYTES = 4.5 * 1024 * 1024 * 1024;
 
 /** Whether this phone has the memory to run the downloaded model at all. */
 export function canRunModel(): boolean {
