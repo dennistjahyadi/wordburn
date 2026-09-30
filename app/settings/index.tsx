@@ -8,17 +8,18 @@
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { STYLE_PRESETS } from '../../src/domain';
 import { loadDictionary } from '../../src/project/dictionary-store';
 import { loadSettings } from '../../src/project/settings';
-import { loadEntitlement } from '../../src/policy/entitlement-store';
-import { freeTierStatus } from '../../src/policy/free-tier';
+import { loadProStatus, syncEntitlement } from '../../src/policy/entitlement-store';
+import { proStatus, type ProStatus } from '../../src/policy/pro';
 import { Divider, Label, QuietButton, Screen } from '../../src/ui/atoms';
 import { plural } from '../../src/ui/describe';
+import { LINKS, pro, settings as copy } from '../../src/ui/copy';
 import { askHowToSendFeedback } from '../../src/ui/feedback';
 import { MIN_TOUCH, space } from '../../src/ui/theme';
 
@@ -26,18 +27,21 @@ export default function Settings() {
   const insets = useSafeAreaInsets();
   const [words, setWords] = useState(0);
   const [styleName, setStyleName] = useState('');
-  const [entitlement, setEntitlement] = useState(loadEntitlement);
+  const [status, setStatus] = useState(() => loadProStatus());
 
   useFocusEffect(
     useCallback(() => {
       setWords(loadDictionary().length);
-      setEntitlement(loadEntitlement());
+      setStatus(loadProStatus());
+      // A subscription can end, pause or come back while the app is closed, and
+      // this is the screen somebody opens to find out which.
+      void syncEntitlement().then((synced) => {
+        if (synced) setStatus(proStatus(synced));
+      });
       const { styleId } = loadSettings();
       setStyleName(STYLE_PRESETS.find((preset) => preset.id === styleId)?.name ?? '');
     }, [])
   );
-
-  const tier = freeTierStatus(entitlement);
 
   return (
     <Screen>
@@ -57,12 +61,13 @@ export default function Settings() {
         />
         <Divider />
         {/* The title names the destination and the detail says where they
-            stand, which is this list's shape everywhere else in it. It read
-            "Unlock everything" over "Free exports carry a small watermark" —
-            a row promising more than the line under it grants. */}
+            stand, which is this list's shape everywhere else in it. The row
+            opens the same screen for everybody: a price for the free tier, the
+            plan and Manage for a subscriber, Restore for somebody on a new
+            phone. */}
         <Row
-          title={entitlement.unlocked ? 'Unlocked' : 'Unlock Wordburn'}
-          detail={entitlement.unlocked ? unlockedOn(entitlement.unlockedAt) : tier.line}
+          title={copy.pro}
+          detail={proDetail(status)}
           onPress={() => router.push({ pathname: '/unlock', params: { from: 'settings' } })}
         />
         <Divider />
@@ -82,36 +87,45 @@ export default function Settings() {
 
       <View style={styles.foot}>
         <Label variant="micro" tone="mute">
-          Wordburn {Constants.expoConfig?.version ?? ''} · your videos never leave this phone
+          Wordburn {Constants.expoConfig?.version ?? ''} · {copy.onDevice}
         </Label>
       </View>
     </Screen>
   );
 }
 
-/**
- * When it was bought, in the phone's own locale.
- *
- * The row still opens Unlock afterwards, which is where Restore lives: somebody
- * who has changed phones needs a way in that is not a paywall, and this is the
- * only one that is not.
- */
-function unlockedOn(at?: string): string {
-  if (!at) return 'Thank you';
-  const when = new Date(at);
-  if (Number.isNaN(when.getTime())) return 'Thank you';
-  return when.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+/** Where this account stands, in the few words a settings row has room for. */
+function proDetail(status: ProStatus): string {
+  switch (status.kind) {
+    case 'free':
+      return copy.proDetail.free;
+    case 'lifetime':
+      return copy.proDetail.lifetime;
+    case 'subscribed':
+      return copy.proDetail.subscribed(status.plan ? pro.plan[status.plan] : 'Pro');
+    case 'suspended':
+      return copy.proDetail.suspended;
+  }
 }
 
 function about() {
+  // The one place the app says where the work happens. It is still true of
+  // every caption, and it is a fact for somebody who goes looking rather than
+  // the pitch. Language models are downloaded once, which is why the line says
+  // "processing" and not "everything".
   Alert.alert(
     `Wordburn ${Constants.expoConfig?.version ?? ''}`,
     [
-      'Your videos never leave this phone. There is no account and no server.',
+      `${copy.onDevice} Your videos, audio and transcripts are never uploaded, and there is no account.`,
       '',
       'Type is set in Be Vietnam Pro and Spectral, both under the SIL Open Font License.',
       'Speech recognition by whisper.cpp, MIT licensed.',
-    ].join('\n')
+    ].join('\n'),
+    [
+      { text: pro.terms, onPress: () => void Linking.openURL(LINKS.terms) },
+      { text: pro.privacy, onPress: () => void Linking.openURL(LINKS.privacy) },
+      { text: 'OK', style: 'cancel' },
+    ]
   );
 }
 

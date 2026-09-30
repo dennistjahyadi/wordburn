@@ -7,8 +7,9 @@
  */
 import { File, Paths } from 'expo-file-system';
 
-import { NEW_ENTITLEMENT, recordUnlock, type Entitlement } from './free-tier';
-import { findUnlock } from './store';
+import { NEW_ENTITLEMENT, type Entitlement } from './free-tier';
+import { applyStoreAnswer, proStatus, recordSubscribed, type PlanId, type ProStatus } from './pro';
+import { askStore } from './store';
 
 function entitlementFile(): File {
   return new File(Paths.document, 'entitlement.json');
@@ -33,29 +34,39 @@ export function saveEntitlement(entitlement: Entitlement): void {
   entitlementFile().write(JSON.stringify(entitlement));
 }
 
-/** Writes down that this account owns the unlock, and hands back the new state. */
-export function markUnlocked(): Entitlement {
-  const unlocked = recordUnlock(loadEntitlement());
-  saveEntitlement(unlocked);
-  return unlocked;
+/** What the file says right now: free, lifetime, subscribed or on hold. */
+export function loadProStatus(now: Date = new Date()): ProStatus {
+  return proStatus(loadEntitlement(), now);
+}
+
+/** Writes down a purchase that just completed, ahead of the next query. */
+export function markSubscribed(plan: PlanId | null): Entitlement {
+  const subscribed = recordSubscribed(loadEntitlement(), plan);
+  saveEntitlement(subscribed);
+  return subscribed;
 }
 
 /**
- * Asks the store what this account owns, and remembers a yes.
+ * Asks the store what this account owns, and writes the answer down.
  *
- * Runs at launch and when the Unlock screen opens. Three things it deliberately
- * does not do: block anything, tell the user when the answer is no, and ever
- * take an unlock away. A phone in a tunnel, a Play Services that is updating and
- * a genuine refund all look identical from here, and only one of them should
- * cost somebody the thing they bought — a refund will be caught by the store
- * itself long before this app could tell the difference.
+ * Runs at launch and when the paywall or Settings opens. It never blocks
+ * anything and it never tells the user when the answer is no.
  *
- * Returns the entitlement only when it changed, so a caller can redraw once
- * instead of on every launch.
+ * When Play cannot be reached nothing is written at all, so the last answer
+ * stands and `OFFLINE_GRACE_DAYS` counts from when it was given. When Play does
+ * answer, the subscription half is replaced by whatever it said, including by
+ * nothing: a subscription that ended has ended. The lifetime half is only ever
+ * added to — a legacy unlock is never taken away here, for the reason it never
+ * was: a tunnel, a Play Services update and a refund look identical from here.
+ *
+ * Returns the entitlement only when Play answered, so a caller can redraw on an
+ * answer rather than on every launch.
  */
 export async function syncEntitlement(): Promise<Entitlement | null> {
-  if (loadEntitlement().unlocked) return null;
-  if (!(await findUnlock())) return null;
+  const answer = await askStore();
+  if (!answer) return null;
 
-  return markUnlocked();
+  const next = applyStoreAnswer(loadEntitlement(), answer);
+  saveEntitlement(next);
+  return next;
 }

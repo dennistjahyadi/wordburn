@@ -14,6 +14,7 @@ import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'rea
 
 import type { FreeTierStatus } from '../policy/free-tier';
 import { Label } from './atoms';
+import { pro } from './copy';
 import { color, MIN_TOUCH, radius, space } from './theme';
 
 export function FreeTierLine({
@@ -38,7 +39,10 @@ export function FreeTierLine({
   // styles, every export, the whole editor — and a user who has been using
   // those for free reads the overclaim rather than the offer. It follows the
   // policy instead of being spelled twice, for the same reason `line` does.
-  const cta = tier.watermark ? 'Remove the watermark' : 'Unlock';
+  //
+  // Under subscriptions the link sells Pro rather than one feature of it, since
+  // the watermark is now one of five things the same tap buys.
+  const cta = tier.onHold ? 'Fix it' : pro.upsell;
 
   return (
     <Pressable

@@ -22,7 +22,8 @@ import {
   putEntry,
   removeEntry,
 } from '../../src/project/dictionary-store';
-import { loadEntitlement } from '../../src/policy/entitlement-store';
+import { loadProStatus } from '../../src/policy/entitlement-store';
+import { isPro } from '../../src/policy/pro';
 import { Divider, Label, QuietButton, Screen } from '../../src/ui/atoms';
 import { color, DEFAULT_ACCENT, MIN_TOUCH, radius, space } from '../../src/ui/theme';
 
@@ -55,7 +56,7 @@ export default function Dictionary() {
     }, [heard, seeded, spelling])
   );
 
-  const unlocked = loadEntitlement().unlocked;
+  const unlocked = isPro(loadProStatus());
   const full = !unlocked && entries.length >= FREE_DICTIONARY_LIMIT;
 
   const add = useCallback(() => {
@@ -65,11 +66,11 @@ export default function Dictionary() {
       // awaited alert: on Android `onDismiss` fires for a button press too.
       Alert.alert(
         `The free list holds ${FREE_DICTIONARY_LIMIT} words`,
-        'Unlocking lifts the limit for good. Your words stay either way.',
+        'Wordburn Pro lifts the limit. Your words stay either way.',
         [
           { text: 'Not now', style: 'cancel' },
           {
-            text: 'Unlock',
+            text: 'Go Pro',
             onPress: () => router.push({ pathname: '/unlock', params: { from: 'dictionary' } }),
           },
         ]

@@ -74,13 +74,16 @@ already seen, so every later bundle needs `npm run bump` first — and `./aab.sh
 refuses to build a code it has already archived rather than letting you find out
 at the end of an upload.
 
-### 4. `captions_unlock_v1` does not exist yet, and nobody has ever bought anything
+### 4. Nobody has bought anything, and the product for sale is now a subscription
 
-CLAUDE.md's known issue. The product has to be created in the console **and** an
-AAB containing the billing library has to be on a track before the purchase flow
-can run even once. The order that works is: upload to Internal testing → create
-the in-app product → add a licence-tested account → buy it for free. Section 9
-below has the product details.
+`captions_unlock_v1` was never created and nobody ever bought it. The app now
+sells **`wordburn_pro`**, a subscription with three base plans, and still
+queries the old ID on every launch so that anybody who ever owns it keeps Pro
+for life. With no sales there is nobody to protect today; **do not create
+`captions_unlock_v1` at all**, and the query stays a harmless no-op. Section 9
+has the subscription, field by field. The order that works is still: upload to
+Internal testing → create the subscription → add a licence-tested account →
+subscribe for free.
 
 ### 5. ~~DEX code optimization is below Play's threshold~~ — fixed at the build
 
@@ -188,66 +191,67 @@ become paid. Free is correct here and stays correct.
 
 Counts are measured against Play's limits.
 
-### App name — 30/30
+The text and the reasoning are in `ASO.md`, which is the source; this is the
+same text, ready to paste. **Repositioned on 2026-09-30** from "offline, pay
+once" to batch captions and auto clip on a subscription.
+
+### App name — 26/30
 
 ```
-Wordburn: Subtitles & Captions
+Wordburn: Captions & Clips
 ```
 
-### Short description — 71/80
+### Short description — 76/80
 
 ```
-Auto captions & subtitles for your video. Offline, on-device, pay once.
+Auto captions for every clip. Queue a batch or cut shorts from a long video.
 ```
 
-### Full description — 2186/4000
+### Full description — 2470/4000
 
 ```
-Wordburn adds captions to your video without sending it anywhere.
+Wordburn puts captions on your short videos, one clip or a whole queue of them.
 
-Pick a clip and the speech is transcribed on your phone. No server, no account, no upload, no sign-in. Wordburn works in airplane mode exactly as well as it works on wifi, and your video never leaves your device.
+Queue your clips, pick one style, and walk away. Wordburn works through the queue in the background and saves every captioned clip to your gallery. Or drop in a long podcast or stream and let auto clip suggest the short clips worth posting.
 
-AUTOMATIC CAPTIONS, ON YOUR PHONE
-Speech recognition runs offline, on-device. Drop in a clip and get word-by-word captions with timing, ready to edit.
+BATCH CAPTIONS
+- Pick up to 30 clips from your gallery at once
+- Choose one language and one caption style for the whole batch
+- The queue keeps running while you use other apps, with progress for every clip
+- Finished clips land in a Wordburn album, named after the original
+- Save your look as a named style and reuse it on every batch
 
-NINE CAPTION STYLES
-Clean subtitle, box highlight, karaoke fill, editorial, spotlight, word stack, headline, newsprint and neon. Every style animates word by word, and the preview is exactly what gets burned into the file.
+AUTO CLIP
+Drop in a long video, from 5 minutes to an hour. Wordburn transcribes it, finds the moments that open with a hook and hold together, and suggests up to 10 clips of 20 to 60 seconds. Adjust where each one starts and ends, add your own, and send the ones you want to the batch queue. Turn on Remove dead air to cut long pauses and stray "um"s.
 
-IT HEARS THE WORD YOU LEANED ON
-Other caption apps ask you to type a list of keywords to emphasise. Wordburn listens. A word said louder, held longer, or set off by a pause is picked out and styled as the big word, from how you actually said it, without tagging anything.
+WORD-BY-WORD CAPTIONS, READY TO EDIT
+Every word is timed on its own, so captions highlight exactly as they are spoken. Tap any word to fix it; its timing stays put. Words the recognizer was unsure about are flagged so you know what to check.
 
-EDIT EVERY WORD
-- Fix a misheard word without changing its timing
+18 CAPTION STYLES
+From a clean subtitle to karaoke fill, a single bold highlighted word, glowing neon and a word stack. Pick the colour, size, position and words per line. The preview is exactly what gets burned into the file.
+
+EDIT EVERY DETAIL
 - Nudge, split, merge and drag word timings on a waveform
 - Shift every caption at once if they run early or late
-- Low-confidence words are flagged so you know what to check
 - Undo and redo everything
+- A personal dictionary for your brand, your handle and the names it keeps getting wrong
 
-MAKE IT YOURS
-Choose the colour, the text size, the position on the frame and how many words appear per line. Your style is remembered for the next video.
-
-A PERSONAL DICTIONARY
-Teach Wordburn how to spell your brand, your handle, or a name it keeps getting wrong. Spell it once and it is spelled that way in every video after.
+FIVE LANGUAGES
+English, Spanish, German, Dutch and Indonesian. Pick the language each clip is spoken in. English is built in; the other four use a larger speech model that is downloaded once.
 
 EXPORT
-Captions are burned into the video on your phone, at full quality, and saved straight to your gallery. Audio is copied across untouched, with no second compression pass. You can export a .srt subtitle file too.
+Captions are burned in at full quality and saved to your gallery, with the audio copied across untouched. Export a .srt subtitle file too.
 
-PAY ONCE
-Wordburn is free to use in full: unlimited videos, unlimited exports, every caption style and every editing tool. Free exports carry a small watermark in the corner. One purchase removes it forever. There is no subscription and there never will be.
+WORDBURN PRO
+Single clips caption and export with a small watermark in the corner. Wordburn Pro removes it and adds batch captions, auto clip, Spanish, German, Dutch and Indonesian, and an unlimited dictionary. Weekly, monthly or yearly, with a free trial on the yearly plan where offered. Cancel anytime in Google Play.
 
-An auto subtitle maker, caption generator and subtitle burner in one app, working entirely offline.
-
-PLEASE NOTE
-Wordburn transcribes English. It does not translate and does not support other languages.
+Wordburn does not translate: captions are in the language that is spoken.
 ```
 
-What changed from `ASO.md`: four styles became nine, and the acoustic-emphasis
-paragraph was added because it is the one thing in the app that no competitor can
-do and it was not in the listing at all. The tier paragraph is `ASO.md`'s own
-again — it was rewritten here to the three-export counter while the code shipped
-that, and rewritten back when `FREE_TIER` moved to the mark. It now says what
-`free-tier.ts` does, with "unlimited exports" spelled out because that is the
-half of the trade a reader of "carries a watermark" does not otherwise hear.
+Every section of it describes a feature that ships in the same release. Paste it
+with the release that has batch, auto clip and the four languages in it, not
+before: a listing that promises a queue the installed app does not have is the
+misleading-claims violation this file has been careful to avoid since section 1.
 
 ### Graphics — you upload these, the extension cannot
 
@@ -393,6 +397,17 @@ explicitly out of scope for this form.
 If it helps to have it in writing for the reviewer, the summary line is: *no data
 leaves the device.*
 
+**Two things added on 2026-09-30, and neither changes the answer.** The app now
+keeps an event log (`src/analytics/events.ts`: paywall shown, plan chosen,
+export done and the like) — in `events.jsonl` in its own storage, never
+transmitted, so by Google's definition it is not collected. And the language
+model for Spanish, German, Dutch and Indonesian is downloaded from
+`huggingface.co` when the user asks for it: a file download, carrying nothing
+about the user beyond what any HTTP request carries, which the privacy policy
+now says in so many words. If the event log is ever sent anywhere, this form
+becomes "Yes — App activity: App interactions", and the privacy policy's
+"Information we collect" paragraph has to change with it.
+
 **Crash reporting was asked for and answered with Android vitals, which is why
 that paragraph is still true.** Quality → Android vitals → Crashes & ANRs
 collects crashes and ANRs from users who turned on diagnostics sharing. It needs
@@ -417,8 +432,8 @@ switch in Settings, so this page can still be filled in as it stands.
 
 > **My app doesn't provide any financial features**
 
-A one-time in-app purchase is not a financial feature. That section is about
-lending, banking, crypto and investment.
+A subscription to an app feature is not a financial feature. That section is
+about lending, banking, crypto and investment.
 
 ### Health apps
 
@@ -517,37 +532,24 @@ exports over an app that has no counter is the same violation the full
 description was fixed for in section 1. Whatever ships here has to agree with
 `src/policy/free-tier.ts`.
 
-### First release — 479/500
+### Pro release — 426/500
 
 ```
-The first release of Wordburn.
+Wordburn Pro is here.
 
-Pick a video and get captions, transcribed on your phone. No account, no upload, no server — it works in airplane mode.
+Batch captions: queue up to 30 clips, pick one language and one style, and let your phone work through them in the background.
 
-Eighteen caption styles. Word-level editing that never moves your timing. A personal dictionary for the words it mishears. Captions burned into the file at full quality, straight to your gallery, plus a .srt if you want one.
+Auto clip: drop in a long video and get up to 10 suggested shorts, captioned. Trim them, cut dead air, and send them to the queue.
 
-Free and unlimited, with a small watermark. One purchase removes it, forever.
+Now in Spanish, German, Dutch and Indonesian as well as English.
 
-English only for now.
+Single clips still caption and export with a small watermark. Pro removes it.
 ```
 
-Eighteen styles, not four and not the nine this line said before slice 14:
-`STYLE_PRESETS` in `src/domain/style.ts`. The English
-line is last for the same reason `ASO.md` carries its PLEASE NOTE block — a
-wrong-market install that rates one star costs more than the words save.
-
-### Short variant — 320/500
-
-For the internal-testing track, where the notes are read by people who already
-know what the app is, and as the fallback if the long one has to lose a line.
-
-```
-The first release of Wordburn.
-
-Captions for your video, transcribed on your phone. Nothing is uploaded and no account is needed. Eighteen styles, word-level editing, a personal dictionary, and captions burned in at full quality.
-
-Free and unlimited with a small watermark; one purchase removes it. English only for now.
-```
+The previous first-release notes promised "one purchase removes it, forever" and
+"English only for now", both of which this release ends. Nothing has been on a
+production track yet, so if this is the first release anyone sees, drop the
+first line and it reads as a first release.
 
 ### After the first release
 
@@ -559,31 +561,65 @@ this machine ever saw.
 
 ---
 
-## 9. In-app products
+## 9. The subscription
 
-Monetise → Products → In-app products → Create product.
+Monetise → Products → Subscriptions → Create subscription.
 
 | Field | Value |
 |---|---|
-| Product ID | `captions_unlock_v1` — matches `src/policy/store.ts:35`, and cannot be changed after creation |
-| Name (55 max) | `Wordburn Unlock` |
-| Description (200 max) | `Removes the watermark from every export, forever. Full quality, every caption style, every editing tool. One payment, no subscription.` |
-| Type | **One-time product**, non-consumable — the code calls `finishTransaction({ isConsumable: false })` |
-| Status | Active |
-| Price | your call — see below |
+| Product ID | `wordburn_pro` — matches `PRO_PRODUCT_ID` in `src/policy/store.ts`, permanent once created |
+| Name | `Wordburn Pro` |
+| Benefits (shown by Play on the subscriptions page) | `No watermark` · `Batch captions` · `Auto clip` · `Spanish, German, Dutch, Indonesian` |
 
-**The product ID is permanent.** A typo here is a rename of the constant in the
-app and a new product with a new ID.
+### Three base plans
 
-On price: the app's whole pitch is *pay once, never again*, against competitors
-charging monthly. Something in the one-off 5–15 USD band is the shape that
-argument wants. Set the USD price and let Play convert the rest; never format a
-price in the app, which is why `displayPrice` comes from the store.
+The base plan IDs are read by the app (`PLAN_IDS` in `src/policy/pro.ts`) and a
+base plan with any other ID is not shown, so spell them exactly.
 
-**Nothing about this flow has ever run.** Once the product is active and an AAB
-is on a track, add your own account under Setup → Licence testing, install from
-the Internal testing link, and buy it. A licence-tested account is not charged.
-That is the only way to close the known issue in CLAUDE.md.
+| Base plan ID | Billing period | Renewal | Placeholder price (USD) | Grace period | Account hold |
+|---|---|---|---|---|---|
+| `weekly` | 1 week | Auto-renewing | 4.99 | 3 days | on (default) |
+| `monthly` | 1 month | Auto-renewing | 9.99 | 7 days | on (default) |
+| `yearly` | 1 year | Auto-renewing | 39.99 | 14 days | on (default) |
+
+Set USD and let Play convert the rest; the app shows whatever Play hands it and
+formats nothing itself.
+
+**Pausing** can be allowed on `monthly` and `yearly` (Play does not offer it on
+weekly). The app reads a paused plan as "on hold", keeps the watermark on and
+sends the user to Play, so allowing it costs nothing in code.
+
+### The free trial is an offer, not code
+
+On `yearly`: Add offer → Offer ID `yearly-trial` → Eligibility **New customer
+acquisition: never had this subscription** → one phase, **Free trial, 3 days**.
+The app finds any offer whose first phase is free and sells it on the yearly
+card; the trial's length is read from Play, so changing it to 7 days is a
+console edit and no release. Somebody who has already had a trial is not given
+the offer by Play and sees the plain yearly price instead.
+
+### On the placeholder prices
+
+The ratio is conventional for the category and one thing about it is worth
+knowing before launch:
+
+- Yearly works out to **3.33 a month**, a third of monthly. That is the shape
+  every trial-led subscription app uses, and the paywall says "Save 66%".
+- **Weekly is the risk.** At 4.99 a week it costs 259 a year and exists mostly
+  as an anchor that makes yearly look cheap. The people this release is aimed
+  at — clippers — are also the people most likely to buy one week, batch a
+  backlog, and cancel. Watch weekly's share of subscriptions in the first
+  month; if it dominates, raise it or remove the base plan (the app simply
+  stops showing a plan Play stops returning).
+
+### Testing it
+
+Setup → Licence testing → add your account. Install from the Internal testing
+link and subscribe: a licence tester is not charged, and Play runs test
+subscriptions on a compressed clock (a year renews in 30 minutes), which is the
+only way to see renewal, grace, account hold and cancellation on a phone. The
+states and what the app does with each are in `src/policy/pro.ts` and asserted
+in `src/policy/__tests__/pro.test.ts`.
 
 ---
 

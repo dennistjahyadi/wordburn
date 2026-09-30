@@ -11,6 +11,7 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import { Album, Asset, getPermissionsAsync, requestPermissionsAsync, type GranularPermission, type PermissionResponse } from 'expo-media-library';
 
+import { track } from '../analytics/events';
 import BurnIn, { type SavedFile, type VideoInfo } from '../../modules/burn-in';
 import ForegroundService from '../../modules/foreground-service';
 import { projectStyle, projectUnits, toSrt, type MeasureText, type Ms, type Project } from '../domain';
@@ -40,6 +41,8 @@ export interface ExportRequest {
   /** Whatever the preview used, so the rise animates the same way or not at all. */
   reducedMotion: boolean;
   onProgress(done: number): void;
+  /** Which door the export came through, for the event log and nothing else. */
+  kind?: 'single' | 'batch' | 'autoclip';
 }
 
 export interface ExportOutcome {
@@ -190,6 +193,7 @@ export async function runExport(request: ExportRequest): Promise<ExportOutcome> 
     // know how much the app has been used by somebody who owes nothing.
     saveEntitlement(recordExport(loadEntitlement()));
     recordExportMade();
+    track({ name: 'export_done', kind: request.kind ?? 'single' });
 
     return {
       video,

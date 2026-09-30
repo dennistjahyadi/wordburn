@@ -14,11 +14,15 @@
  * forget, and everywhere else the user asked for it and is watching a spinner.
  *
  * There is no receipt validation. It would need a server, this app has none by
- * design, and the thing being protected is a one-time unlock on the user's own
- * phone. Play's own answer to `getAvailablePurchases` is the source of truth.
+ * design, and Play's own answer to `getAvailablePurchases` is the source of
+ * truth. That is also why the subscription states are read the way Play Billing
+ * reports them to a client: a purchase Play returns is live (grace period and
+ * cancelled-but-paid-up included), a purchase Play returns as suspended is on
+ * account hold or paused, and one it does not return has ended.
  */
 import { Platform } from 'react-native';
 import {
+  deepLinkToSubscriptions,
   ErrorCode,
   fetchProducts,
   finishTransaction,
@@ -28,15 +32,36 @@ import {
   purchaseUpdatedListener,
   requestPurchase,
   restorePurchases,
+  type ProductSubscription,
   type Purchase,
 } from 'expo-iap';
 
-/** One non-consumable, the same id in both stores. */
-export const UNLOCK_PRODUCT_ID = 'captions_unlock_v1';
+import { plansFromOffers, type OfferInput, type Plan } from './plans';
+import { isPlanId, type PlanId, type StoreAnswer } from './pro';
+
+/**
+ * The subscription, with three base plans: `weekly`, `monthly` and `yearly`.
+ * The free trial is an offer on `yearly`, configured in Play Console.
+ */
+export const PRO_PRODUCT_ID = 'wordburn_pro';
+
+/**
+ * The one-time unlock Wordburn sold before it sold subscriptions.
+ *
+ * Nothing sells it any more, and it must stay here anyway: it is queried on every
+ * launch alongside the subscription, and anybody who owns it has Pro for life,
+ * every later feature included. Deleting this line would silently take a paid
+ * product away from everybody who bought it. Deactivating it in Play Console
+ * stops new sales without touching existing owners, which is the only change it
+ * should ever get.
+ */
+export const LEGACY_UNLOCK_PRODUCT_ID = 'captions_unlock_v1';
+
+const PACKAGE_NAME = 'com.wordburn.app';
 
 export type PurchaseOutcome =
-  /** Play or the App Store says this account owns it. Write it down and move on. */
-  | { kind: 'unlocked' }
+  /** Play says this account now has the plan. Write it down and move on. */
+  | { kind: 'subscribed'; plan: PlanId }
   /** Play's "pending" state: cash, a parent's approval, a bank that is thinking. */
   | { kind: 'pending' }
   /** The user backed out of the sheet. Not a failure and never an alert. */
@@ -49,67 +74,97 @@ export type PurchaseOutcome =
  * A rejection is cached as `false` rather than thrown: a phone with no Play
  * Services, a build the store has never heard of and a plane with no signal all
  * arrive here, and none of them is an error the user can act on. Every caller
- * checks the boolean.
+ * checks the boolean. A failure is not cached forever, though — somebody who was
+ * offline at launch and opens the paywall later deserves a second try.
  */
 let connection: Promise<boolean> | null = null;
 
 export function connectToStore(): Promise<boolean> {
   connection ??= initConnection()
     .then((ready) => ready !== false)
-    .catch(() => false);
+    .catch(() => false)
+    .then((ready) => {
+      if (!ready) connection = null;
+      return ready;
+    });
   return connection;
 }
 
 /**
- * What the unlock costs, and why there is no price when there is no price.
+ * What the plans cost, and why there are none when there are none.
  *
  * Three answers, because the two failures are not the same failure and the user
  * is owed the difference: a phone that cannot reach the store at all, and a store
  * that answered and has nothing to sell this account.
  */
-export type PriceLookup =
-  | { kind: 'priced'; price: string }
+export type PlansLookup =
+  | { kind: 'priced'; plans: Plan[] }
   /** The store answered. It does not offer this product to this account. */
   | { kind: 'unavailable' }
   /** No answer at all: no connection, no Play Services, no store. */
   | { kind: 'offline' };
 
 /**
- * The price, as the store itself writes it.
+ * The three plans, as Play prices them for this account.
  *
- * Never composed here. `displayPrice` is already "Rp 99.000" or "$4.99" with the
- * right symbol, separators and position for the account's country, and any
- * attempt to build that string from a number gets it wrong somewhere.
- *
- * The emptiness check is not defensive tidying. Play Billing 8 stopped omitting
- * a SKU it cannot find and now returns a `Product` for it with the fields blank
- * and `productStatusAndroid` saying why — so an unpublished app gets an object
- * back, and a `?? null` on `displayPrice` sails straight past it. The A54 showed
- * this as a button reading "Unlock for " with nothing after it.
+ * An empty price is treated as no product. Play Billing 8 stopped omitting a SKU
+ * it cannot find and returns one with the fields blank instead, which the A54
+ * showed as a button reading "Unlock for " with nothing after it.
  */
-export async function unlockPrice(): Promise<PriceLookup> {
+export async function loadPlans(): Promise<PlansLookup> {
   if (!(await connectToStore())) return { kind: 'offline' };
 
   try {
-    const products = await fetchProducts({ skus: [UNLOCK_PRODUCT_ID], type: 'in-app' });
-    const product = (products ?? []).find((candidate) => candidate.id === UNLOCK_PRODUCT_ID);
-    const price = product?.displayPrice?.trim();
+    const products = (await fetchProducts({ skus: [PRO_PRODUCT_ID], type: 'subs' })) ?? [];
+    const product = products.find((candidate) => candidate.id === PRO_PRODUCT_ID) as
+      | ProductSubscription
+      | undefined;
 
-    return price ? { kind: 'priced', price } : { kind: 'unavailable' };
+    const plans = plansFromOffers(offersOf(product)).filter((plan) => plan.price.trim() !== '');
+    return plans.length > 0 ? { kind: 'priced', plans } : { kind: 'unavailable' };
   } catch {
     return { kind: 'offline' };
   }
 }
 
+/** Play's offers, in the shape `plans.ts` reads. Only Android has them. */
+function offersOf(product: ProductSubscription | undefined): OfferInput[] {
+  if (!product || product.platform !== 'android') return [];
+
+  return (product.subscriptionOffers ?? []).flatMap((offer) => {
+    const token = offer.offerTokenAndroid;
+    const basePlanId = offer.basePlanIdAndroid;
+    const phases = offer.pricingPhasesAndroid?.pricingPhaseList ?? [];
+    if (!token || !basePlanId || phases.length === 0) return [];
+
+    return [
+      {
+        basePlanId,
+        // expo-iap reports the base plan's own offer with the base plan id
+        // standing in for an offer id Play leaves empty.
+        offerId: offer.id && offer.id !== basePlanId ? offer.id : null,
+        offerToken: token,
+        phases: phases.map((phase) => ({
+          billingPeriod: phase.billingPeriod,
+          priceAmountMicros: Number(phase.priceAmountMicros),
+          formattedPrice: phase.formattedPrice,
+          currencyCode: phase.priceCurrencyCode,
+          recurrenceMode: phase.recurrenceMode,
+        })),
+      },
+    ];
+  });
+}
+
 /**
- * Buys the unlock, and resolves with what actually happened.
+ * Subscribes to one plan, and resolves with what actually happened.
  *
  * `requestPurchase` returns as soon as the sheet is up; the answer comes back on
  * a listener. Both listeners are attached before the sheet opens, because a
  * purchase that completes while nothing is listening is a user who paid and saw
  * nothing happen.
  */
-export async function buyUnlock(): Promise<PurchaseOutcome> {
+export async function subscribe(plan: Plan): Promise<PurchaseOutcome> {
   if (!(await connectToStore())) {
     return { kind: 'failed', message: storeUnreachable() };
   }
@@ -126,7 +181,7 @@ export async function buyUnlock(): Promise<PurchaseOutcome> {
     };
 
     const updates = purchaseUpdatedListener((purchase) => {
-      if (purchase.productId !== UNLOCK_PRODUCT_ID) return;
+      if (purchase.productId !== PRO_PRODUCT_ID) return;
 
       if (purchase.purchaseState === 'pending') {
         done({ kind: 'pending' });
@@ -136,7 +191,7 @@ export async function buyUnlock(): Promise<PurchaseOutcome> {
       // Acknowledged before the promise resolves. Play refunds an unacknowledged
       // purchase after three days, and there is no server here to do it later.
       void acknowledge(purchase);
-      done({ kind: 'unlocked' });
+      done({ kind: 'subscribed', plan: plan.id });
     });
 
     const errors = purchaseErrorListener((error) => {
@@ -144,20 +199,23 @@ export async function buyUnlock(): Promise<PurchaseOutcome> {
         done({ kind: 'cancelled' });
         return;
       }
-      // Somebody who already owns it and lost the local record has not failed at
+      // Somebody already subscribed who lost the local record has not failed at
       // anything; they have restored it.
       if (error.code === ErrorCode.AlreadyOwned) {
-        done({ kind: 'unlocked' });
+        done({ kind: 'subscribed', plan: plan.id });
         return;
       }
       done({ kind: 'failed', message: error.message || 'The store did not finish that.' });
     });
 
     requestPurchase({
-      type: 'in-app',
+      type: 'subs',
       request: {
-        google: { skus: [UNLOCK_PRODUCT_ID] },
-        apple: { sku: UNLOCK_PRODUCT_ID },
+        google: {
+          skus: [PRO_PRODUCT_ID],
+          subscriptionOffers: [{ sku: PRO_PRODUCT_ID, offerToken: plan.offerToken }],
+        },
+        apple: { sku: PRO_PRODUCT_ID },
       },
     }).catch((error: unknown) => {
       done({ kind: 'failed', message: describe(error) });
@@ -166,42 +224,92 @@ export async function buyUnlock(): Promise<PurchaseOutcome> {
 }
 
 /**
- * Asks the store what this account already owns.
+ * Asks the store what this account owns: the legacy unlock and the subscription.
+ *
+ * Null when the store could not be asked, which is different from an answer of
+ * "nothing" and must be treated differently — see `applyStoreAnswer`.
  *
  * The same query answers Restore and the quiet check at launch, because on both
- * stores restoring is a query and not a transaction. Anything owned but never
- * acknowledged is acknowledged here: that is a purchase that completed while the
- * app was being killed, and Play is counting down to refunding it.
+ * stores restoring is a query and not a transaction. Suspended purchases are
+ * asked for too: without them account hold and a paused plan would look exactly
+ * like a subscription that ended, and the user would be sold one they already
+ * have. Anything owned, live and unacknowledged is acknowledged here — a
+ * purchase that completed while the app was being killed, which Play is
+ * counting down to refunding.
  */
-export async function findUnlock(): Promise<boolean> {
-  if (!(await connectToStore())) return false;
+export async function askStore(): Promise<StoreAnswer | null> {
+  if (!(await connectToStore())) return null;
 
   try {
     // iOS needs a sync before the query to see a purchase made on another device.
     // On Android this is the query, so calling both is one round trip either way.
     if (Platform.OS === 'ios') await restorePurchases();
 
-    const owned = await getAvailablePurchases();
-    const unlock = owned.find(
-      (purchase) =>
-        purchase.productId === UNLOCK_PRODUCT_ID && purchase.purchaseState === 'purchased'
-    );
-    if (!unlock) return false;
+    const owned = await getAvailablePurchases({ includeSuspendedAndroid: true });
 
-    void acknowledge(unlock);
-    return true;
+    const lifetime = owned.find(
+      (purchase) =>
+        purchase.productId === LEGACY_UNLOCK_PRODUCT_ID && purchase.purchaseState === 'purchased'
+    );
+    if (lifetime) void acknowledge(lifetime);
+
+    const subscription = pickSubscription(
+      owned.filter(
+        (purchase) =>
+          purchase.productId === PRO_PRODUCT_ID && purchase.purchaseState === 'purchased'
+      )
+    );
+    if (subscription && !isSuspended(subscription)) void acknowledge(subscription);
+
+    return {
+      lifetime: !!lifetime,
+      subscription: subscription
+        ? {
+            plan: planOf(subscription),
+            renewing: subscription.isAutoRenewing,
+            suspended: isSuspended(subscription),
+          }
+        : null,
+    };
   } catch {
-    return false;
+    return null;
+  }
+}
+
+/** A live purchase over a suspended one, if Play ever returns both. */
+function pickSubscription(purchases: Purchase[]): Purchase | undefined {
+  return purchases.find((purchase) => !isSuspended(purchase)) ?? purchases[0];
+}
+
+function isSuspended(purchase: Purchase): boolean {
+  return 'isSuspendedAndroid' in purchase && purchase.isSuspendedAndroid === true;
+}
+
+function planOf(purchase: Purchase): PlanId | null {
+  return isPlanId(purchase.currentPlanId) ? purchase.currentPlanId : null;
+}
+
+/**
+ * Opens Play's own page for this subscription: cancel, change plan, fix payment.
+ *
+ * The app never manages a subscription itself. Play's page is where the rules
+ * live, and it is the page Play's policy expects a subscriber to be sent to.
+ */
+export async function openSubscriptionSettings(): Promise<void> {
+  try {
+    await deepLinkToSubscriptions({ skuAndroid: PRO_PRODUCT_ID, packageNameAndroid: PACKAGE_NAME });
+  } catch {
+    // Nothing useful to say: the Play Store app is either there or it is not.
   }
 }
 
 /**
  * Tells the store the goods were handed over.
  *
- * `isConsumable: false`, always: this product is bought once and owning it is the
- * point. Acknowledging twice is an error on Play, so an acknowledged purchase is
- * left alone, and a failure here is swallowed — the user has their unlock either
- * way and the next launch queries again.
+ * `isConsumable: false`, always: neither product is ever used up. Acknowledging
+ * twice is an error on Play, so an acknowledged purchase is left alone, and a
+ * failure here is swallowed — the user has what they paid for either way and
+ * the next launch queries again.
  */
 async function acknowledge(purchase: Purchase): Promise<void> {
   if ('isAcknowledgedAndroid' in purchase && purchase.isAcknowledgedAndroid) return;
@@ -223,8 +331,8 @@ export function storeUnreachable(): string {
 /** What to say when the store answered and has nothing to sell this account. */
 export function storeHasNothing(): string {
   return Platform.OS === 'android'
-    ? 'Google Play is not offering this unlock to your account yet. Try again later.'
-    : 'The App Store is not offering this unlock to your account yet. Try again later.';
+    ? 'Google Play is not offering Wordburn Pro to your account yet. Try again later.'
+    : 'The App Store is not offering Wordburn Pro to your account yet. Try again later.';
 }
 
 function describe(error: unknown): string {

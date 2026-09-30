@@ -8,7 +8,11 @@
  * paywall after the work is done is the loudest complaint in this whole market.
  *
  * The policy is one object so the three candidates stay a one-line change.
+ *
+ * Who escapes it is `pro.ts`'s question, not this file's: a lifetime purchase or
+ * a live subscription, and nothing else.
  */
+import { isPro, proStatus, type SubscriptionRecord } from './pro';
 
 export type FreeTierPolicy =
   | { kind: 'exports'; freeExports: number }
@@ -33,8 +37,14 @@ export type FreeTierPolicy =
 export const FREE_TIER: FreeTierPolicy = { kind: 'watermark' };
 
 export interface Entitlement {
-  /** True once the one-time purchase is restored or bought. */
+  /**
+   * True once the legacy one-time purchase, `captions_unlock_v1`, is restored or
+   * bought. It is Pro for life. The field kept its name because every
+   * `entitlement.json` already on a phone spells it this way.
+   */
   unlocked: boolean;
+  /** The subscription as Play last described it, or null when it has none. */
+  subscription?: SubscriptionRecord | null;
   /** Clean exports already taken on the free tier. */
   exportsUsed: number;
   /** ISO date of first launch, which a trial policy counts from. */
@@ -56,6 +66,8 @@ export interface FreeTierStatus {
   blocked: boolean;
   /** True when the next export carries a watermark. */
   watermark: boolean;
+  /** Set when a subscription is on account hold or paused, so the link fixes it rather than sells it. */
+  onHold?: true;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -65,7 +77,15 @@ export function freeTierStatus(
   now: Date = new Date(),
   policy: FreeTierPolicy = FREE_TIER
 ): FreeTierStatus {
-  if (entitlement.unlocked) return { line: '', blocked: false, watermark: false };
+  const status = proStatus(entitlement, now);
+  if (isPro(status)) return { line: '', blocked: false, watermark: false };
+
+  // Somebody who is paying and whose card failed is not a free user who needs
+  // selling to. They need to be told where to fix it, on the same line every
+  // screen already reads, and the free tier applies until they do.
+  if (status.kind === 'suspended') {
+    return { line: 'Pro is on hold: update your payment in Google Play', blocked: false, watermark: true, onHold: true };
+  }
 
   if (policy.kind === 'watermark') {
     return { line: 'Free exports carry a small watermark', blocked: false, watermark: true };
@@ -93,9 +113,9 @@ export function freeTierStatus(
   };
 }
 
-/** Records an export against the free tier. Unlocked users are never counted. */
-export function recordExport(entitlement: Entitlement): Entitlement {
-  if (entitlement.unlocked) return entitlement;
+/** Records an export against the free tier. Pro users are never counted. */
+export function recordExport(entitlement: Entitlement, now: Date = new Date()): Entitlement {
+  if (isPro(proStatus(entitlement, now))) return entitlement;
   return { ...entitlement, exportsUsed: entitlement.exportsUsed + 1 };
 }
 

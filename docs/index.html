@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Wordburn Privacy Policy</title>
-<meta name="description" content="Wordburn collects nothing. No server, no account, no analytics. Your videos, audio and transcripts never leave your phone.">
+<meta name="description" content="Wordburn collects nothing about you. No server, no account, no analytics. Your videos, audio and transcripts are processed on your phone and never uploaded.">
 <meta name="color-scheme" content="dark light">
 <style>
   :root {
@@ -119,25 +119,39 @@
     </div>
 
     <h1>Privacy Policy</h1>
-    <p class="updated">Last updated 20 September 2026 · Wordburn for Android (<code>com.wordburn.app</code>)</p>
+    <p class="updated">Last updated 30 September 2026 · Wordburn for Android (<code>com.wordburn.app</code>)</p>
   </header>
 
   <div class="lede">
     <p><strong>Wordburn does not collect your data.</strong> There is no server, no
-    account and no analytics. Your videos, your audio and your transcripts stay on
-    your phone, and the app works exactly the same in airplane mode.</p>
+    account and no analytics. Your videos, your audio and your transcripts are
+    processed on your phone and stay there. The app uses the internet for two
+    things only, both described below: Google Play subscriptions, and a one-time
+    download of a speech model if you choose a language other than English.</p>
   </div>
 
   <h2>What Wordburn does with your video</h2>
 
-  <p>When you pick a video, Wordburn copies it into its own private storage on your
-  device, extracts the audio, and transcribes the speech using a speech recognition
-  model that is built into the app and runs entirely on your phone. Captions are
-  burned into the video on your phone as well.</p>
+  <p>When you pick a video, or several, Wordburn copies it into its own private
+  storage on your device, extracts the audio, and transcribes the speech using a
+  speech recognition model that runs entirely on your phone. Captions are burned
+  into the video on your phone as well. The same is true of batch captioning and
+  of auto clip, which finds short clips inside a longer video.</p>
 
-  <p>None of this involves the internet. No video, no audio, no transcript and no
-  part of any file you open is ever uploaded, transmitted, or shared with us or with
-  anyone else. There is nowhere for it to go: Wordburn has no server.</p>
+  <p>No video, no audio, no transcript and no part of any file you open is ever
+  uploaded, transmitted, or shared with us or with anyone else. There is nowhere
+  for it to go: Wordburn has no server.</p>
+
+  <h2>Speech models</h2>
+
+  <p>The English model is built into the app. The model for Spanish, German, Dutch
+  and Indonesian is larger, so it is downloaded once, and only when you choose one
+  of those languages and confirm the download. It comes from Hugging Face
+  (<code>huggingface.co</code>), which hosts the official whisper.cpp models. Like
+  any web server, Hugging Face receives your device's IP address and the name of
+  the file requested; nothing about you, your videos or your transcripts is sent.
+  The model is stored in the app's private storage and can be deleted from
+  Settings → Languages.</p>
 
   <h2>What is stored, and where</h2>
 
@@ -149,7 +163,12 @@
     <li>Extracted audio and the transcript</li>
     <li>Your captions, styles and editing history</li>
     <li>Your personal dictionary</li>
-    <li>App settings, and whether the one-time unlock has been purchased</li>
+    <li>App settings, and whether you have Wordburn Pro</li>
+    <li>Your saved style presets and your batch queue</li>
+    <li>A short log of what happened in the app — for example that an export
+    finished, or which plan was chosen on the Pro screen. It never contains any
+    video, audio, transcript or file name, it is never sent anywhere, and it is
+    deleted with the app.</li>
   </ul>
 
   <p>None of it is readable by other apps. Uninstalling Wordburn deletes all of it,
@@ -162,23 +181,25 @@
 
   <h2>Information we collect</h2>
 
-  <p><strong>None.</strong> Wordburn contains no analytics, no crash reporting, no
-  advertising, no tracking of any kind, and no advertising identifier. We do not
-  know who you are, that you installed the app, or that you have ever used it.</p>
+  <p><strong>None.</strong> Wordburn contains no analytics service, no crash
+  reporting, no advertising, no tracking of any kind, and no advertising
+  identifier. The event log described above stays on your device. We do not know
+  who you are, that you installed the app, or that you have ever used it.</p>
 
   <h2>Purchases</h2>
 
-  <p>Wordburn is free to use in full. Free exports carry a small watermark in the
-  corner, and one optional one-time purchase removes it. There is no subscription.</p>
+  <p>Wordburn can caption and export single clips without paying; those exports
+  carry a small watermark. Wordburn Pro is an optional subscription, weekly,
+  monthly or yearly, that removes the watermark and adds batch captioning, auto
+  clip, more languages and an unlimited dictionary. Anybody who bought the earlier
+  one-time unlock keeps everything Pro includes.</p>
 
-  <p>Purchases are handled entirely by Google Play. Wordburn asks Google Play
-  whether this purchase has been made and stores that yes-or-no answer on your
-  device. We never see, receive or store your payment details, your name, your email
-  address or your Google account. What Google collects when you make a purchase is
-  covered by <a href="https://policies.google.com/privacy">Google's own privacy
-  policy</a>.</p>
-
-  <p>This is the only feature in Wordburn that uses the internet.</p>
+  <p>Subscriptions are handled entirely by Google Play, including free trials,
+  renewals and cancellation. Wordburn asks Google Play which plan, if any, this
+  account has, and stores that answer on your device. We never see, receive or
+  store your payment details, your name, your email address or your Google
+  account. What Google collects when you subscribe is covered by
+  <a href="https://policies.google.com/privacy">Google's own privacy policy</a>.</p>
 
   <h2>Permissions</h2>
 
@@ -195,7 +216,8 @@
     screen turns off.</dd>
 
     <dt>Internet and network state</dt>
-    <dd>Used only to ask Google Play about purchases, as above.</dd>
+    <dd>Used only to ask Google Play about subscriptions and to download a speech
+    model you asked for, as above.</dd>
 
     <dt>Microphone and Camera</dt>
     <dd class="none">Listed on the store page but never used. They are declared by

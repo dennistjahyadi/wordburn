@@ -312,6 +312,26 @@ properties rather than presets.
     `settings.json` that names it still resolves.
     **Not run on any device**, so by the line below this slice is not done.
 
+15. Wordburn Pro: a subscription instead of a one-time unlock, and a listing
+    that sells volume instead of "offline".
+    **Written and tested; the paywall drawn on an Android 16 emulator in a debug
+    build, with sample plans. No purchase has run anywhere.**
+    The product is repositioned around people who make a lot of clips — the
+    build prompt's clippers — and every phase after this one is a feature for
+    them. This slice is the money and the words: `wordburn_pro` with weekly,
+    monthly and yearly base plans read from Play at runtime, a trial that is a
+    Play Console offer, `pro.ts` deciding who is Pro across every state a client
+    can see, and the legacy unlock kept as Pro for life. The Unlock route became
+    the Pro screen and kept its name, so every door into it still works. The
+    free tier did not move: single clips caption and export with the mark.
+    Every "offline", "no upload", "pay once", "forever" and "no subscription"
+    left the app, the listing and the release notes; the on-device fact is
+    said once, in Settings. The privacy policy was rewritten for the
+    subscription, the event log and the model download, and a terms page
+    (`docs/terms.html`) exists because a subscription needs one.
+    **Not run on the A54, and nothing bought**, so by the line below this slice
+    is not done.
+
 Every slice runs as a release build on the Galaxy A54 before it is called done.
 
 ## Known issues
@@ -409,15 +429,15 @@ canvas beat the four the old grid drew in four.
   TikTok's own DM screen is the same half-proof Instagram got in slice 10 — a
   machine should stop at somebody's real account — and TikTok proper is still not
   installed on the A54.
-- **Nobody has ever bought anything.** Play Billing connects, and the product
-  query answers — with nothing, because `captions_unlock_v1` does not exist in
-  any Play Console. So `buyUnlock`, the purchase sheet, the pending state, the
-  acknowledgement and a real restore on a second device are all unrun code. What
-  has been verified on the phone is the shape around them: the connection opens,
-  the query answers, the price is asked for, a missing product is reported as one
-  and the screen offers Try again. The rest needs an internal testing track and a
-  licence-tested account, and the app has to be uploaded before any of it exists.
-
+- **Nobody has ever subscribed.** Play Billing connects, and the product
+  query answers — with nothing, because `wordburn_pro` does not exist in any Play
+  Console yet. So `subscribe`, the purchase sheet, the trial, the pending state,
+  the acknowledgement, account hold, and a real restore on a second device are
+  all unrun code. The states are unit tested against the shapes Play Billing
+  documents; the phone has to answer whether expo-iap reports them that way,
+  above all `isSuspendedAndroid` and `currentPlanId`. `PLAY-CONSOLE.md` section
+  9 has the subscription field by field and the licence-testing route, where
+  Play runs a year in thirty minutes.
 - **iOS has never been built.** Not once, in any slice. Nothing is known about
   the Skia overlay, the fonts, the player or the pause-on-background rule there,
   and there is no iOS burn-in at all.
@@ -701,6 +721,12 @@ has to argue with that gap.
   a wall nobody could see coming for one they can. `exportsUsed` still counts and
   nothing reads it for gating; the free-tier test asserts that 99 exports still
   do not block, so a counter cannot grow back by accident.
+- **Superseded in slice 15, kept for the reasoning:** the paywall now sells
+  Wordburn Pro, a subscription, and lists five things — the watermark, batch,
+  auto clip, the four downloaded languages and the dictionary cap — because
+  those are what it gates. What survives from below is the rule: every line on
+  that screen is something the payment actually changes, and the goodwill line
+  stays under the button, never on it.
 - **The Unlock screen sells the watermark, not "everything", and the button is
   never a tip jar.** Two copy decisions, one cause: when the counter became a
   mark, the paywall stopped standing in front of most of what the screen was
@@ -931,10 +957,18 @@ has to argue with that gap.
 ## Persistence
 
 `entitlement.json` sits beside `settings.json` and holds what has been paid for:
-`unlocked`, `unlockedAt`, `exportsUsed`, `firstRunAt`. Separate from settings
+`unlocked` and `unlockedAt` (the legacy lifetime purchase, under the names every
+file on a phone already uses), `subscription` (plan, renewing, suspended and when
+Play last said so), `exportsUsed`, `firstRunAt`. Separate from settings
 because a receipt and a dismissed coach card have nothing to do with each other,
 and because deleting it is how a free tier gets reset for testing. Play is the
 real record; this file is the app's memory of what Play last said.
+
+`events.jsonl`, beside them, is the event log: `paywall_shown`, `plan_selected`,
+`trial_started`, `subscribed`, `batch_started`, `autoclip_run`,
+`language_selected`, `export_done`, with counts and never content. It is never
+transmitted — there is no analytics SDK and the privacy policy still says
+nothing is collected — and it is trimmed to the newest 2000 lines.
 
 A project owns everything it needs: `project.json`, `pipeline.json`, `audio.pcm`,
 `envelope.f32`, `thumb.jpg`, `source.<ext>`, the video itself, and `export.mp4`
@@ -1353,36 +1387,60 @@ app is holding about 105 frames a second while animating five captions at once.
 ## The store
 
 `src/policy/store.ts` is the only caller of expo-iap, the way `src/asr` is the
-only caller of whisper. One non-consumable, `captions_unlock_v1`, in both stores.
+only caller of whisper. **Since slice 15 the product is a subscription**,
+`wordburn_pro`, with three base plans — `weekly`, `monthly`, `yearly` — and a
+free-trial offer on `yearly` that lives in Play Console, not in code. The old
+non-consumable, `captions_unlock_v1`, is never sold again and is still queried on
+every launch: whoever owns it has Pro for life, every later feature included.
+Nobody ever bought it, so today that branch protects nobody, and deleting it
+would be the one change that could ever take a paid product away.
 
-The price is never composed in this app. `displayPrice` arrives from the store
-already carrying the right symbol, separators and position for the account's
-country; a number formatted here is wrong the moment somebody opens the app
-abroad. When the store cannot be reached there is no price and the button reads
-"Try again" instead of a guess.
+Who is Pro is `src/policy/pro.ts`, pure and tested, and the states are the ones a
+client can actually see without a server:
+
+| Play returns | `proStatus` | Pro? |
+|---|---|---|
+| the legacy purchase | `lifetime` | yes, forever |
+| a live subscription (grace period included) | `subscribed`, `renewing: true` | yes |
+| a live subscription the user cancelled | `subscribed`, `renewing: false` | yes, until it lapses |
+| a suspended purchase (account hold, paused) | `suspended` | no — the line says fix it in Play |
+| nothing | `free` | no |
+| no answer at all | whatever it said last | yes for 14 days, then no |
+
+The last row is the one to understand. A lifetime unlock is never taken away,
+for the reason it never was: a tunnel, a Play Services update and a refund look
+identical from here. A subscription *is* taken away, because ending is its normal
+life — but not because Play was unreachable. `syncEntitlement` writes nothing
+when there is no answer, and `OFFLINE_GRACE_DAYS` counts from the last one.
+Suspended purchases are asked for (`includeSuspendedAndroid`) precisely so that
+somebody on account hold is told to fix a payment rather than sold a
+subscription they already have.
+
+No price is composed in this app. Every amount on the paywall is Play's own
+string, and the one number worked out here — yearly's per-month figure — is
+Play's micros over twelve, formatted by `Intl` in Play's currency **with as many
+decimals as Play used**, because ISO gives the rupiah two and Play writes none.
+`plans.test.ts` has the case that caught it.
 
 A purchase does not come back from `requestPurchase`. It arrives on
 `purchaseUpdatedListener`, so both listeners are attached before the sheet opens
-and removed when it settles: a purchase that completes while nothing is listening
-is a user who paid and saw nothing happen. Anything owned is acknowledged with
+and removed when it settles. Anything owned and live is acknowledged with
 `finishTransaction({ isConsumable: false })` — Play refunds an unacknowledged
 purchase after three days and there is no server here to do it later — and an
-already-acknowledged purchase is left alone, because acknowledging twice is an
-error.
-
-Restore is the same query as the launch check: on both stores restoring is a
-query, not a transaction. It never takes an unlock away. A tunnel, a Play
-Services mid-update and a genuine refund are indistinguishable from inside the
-app, and only one of them should cost somebody what they bought.
+already-acknowledged purchase is left alone. Managing, cancelling and fixing a
+payment all happen on Play's own page, through `deepLinkToSubscriptions`.
 
 There is no receipt validation, because it would need a server this app does not
-have and the thing being protected is a one-time unlock on the user's own phone.
+have.
 
-This is the one part of the app that touches the network, which is why invariant
-9 reads "after the model is on disk" rather than "never". Nothing here is ever
-awaited on a path that leads to a caption: the launch check is fire and forget in
-the root layout, and everywhere else the user asked for it and is watching a
-spinner.
+This and the language-model download are the only network calls in the app.
+Nothing here is ever awaited on a path that leads to a caption: the launch check
+is fire and forget in the root layout, and everywhere else the user asked for it
+and is watching a spinner.
+
+A debug build shows sample plans at the placeholder prices when Play has nothing
+to sell it, which is always, so the paywall can be looked at. A release build
+never does.
 
 ## Emphasis
 
