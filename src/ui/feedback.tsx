@@ -7,7 +7,7 @@
  * there is no work to interrupt. A modal over the editor would be the same
  * question asked at the moment it is least welcome.
  *
- * Both routes leave the app, because an offline app with no server has nowhere to
+ * Both routes leave the app, because an app with no server of its own has nowhere to
  * put a form. That is a high-friction ask, which is the second reason to make it
  * once and make it late.
  */

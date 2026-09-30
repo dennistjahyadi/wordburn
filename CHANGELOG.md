@@ -31,8 +31,7 @@ time you choose one of them; Settings → Languages can remove it again.
 trial on yearly where Google Play offers one. Pro removes the watermark and
 unlocks batch captions, auto clip, the four new languages and an unlimited
 dictionary. Single clips still caption and export without paying, with a
-small watermark in the corner. Anyone who bought the earlier one-time unlock
-keeps everything, including all of the above.
+small watermark in the corner.
 
 Also: very long words — German and Dutch compounds especially — now shrink to
 fit the frame instead of running off its edges.

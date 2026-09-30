@@ -62,7 +62,7 @@ export const pro = {
     'Wordburn is built by one independent developer. Your support means more time to improve the app, fix the little things, and keep making it better. Thank you.',
   active: {
     title: "You're Pro",
-    lifetime: 'Pro for life, from your original Wordburn purchase. Everything new is yours too.',
+    lifetime: 'Every Pro feature is on for this account.',
     renewing: (plan: string) => `${plan} plan. Manage or cancel it in Google Play.`,
     ending: (plan: string) => `${plan} plan, cancelled. Pro stays on until the end of the period you paid for.`,
     unverified: 'Google Play could not be reached, so this is what it said last time.',
@@ -84,7 +84,7 @@ export const settings = {
   pro: 'Wordburn Pro',
   proDetail: {
     free: 'Free exports carry a small watermark',
-    lifetime: 'Pro for life',
+    lifetime: 'Pro',
     subscribed: (plan: string) => `${plan} plan`,
     suspended: 'On hold: update payment',
   },
