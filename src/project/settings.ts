@@ -8,7 +8,7 @@
  */
 import { File, Paths } from 'expo-file-system';
 
-import { DEFAULT_STYLE_ID, type StyleOverrides } from '../domain';
+import { DEFAULT_LANGUAGE, DEFAULT_STYLE_ID, isLanguage, type Language, type StyleOverrides } from '../domain';
 
 export interface Settings {
   /**
@@ -49,6 +49,11 @@ export interface Settings {
    */
   styleId: string;
   styleOverrides: StyleOverrides;
+  /**
+   * The language the last clip was spoken in, which is the best guess for the
+   * next one. Home's picker starts here and a batch starts here.
+   */
+  language: Language;
 }
 
 export const NEW_SETTINGS: Settings = {
@@ -58,6 +63,7 @@ export const NEW_SETTINGS: Settings = {
   feedbackAsked: false,
   styleId: DEFAULT_STYLE_ID,
   styleOverrides: {},
+  language: DEFAULT_LANGUAGE,
 };
 
 function settingsFile(): File {
@@ -69,7 +75,8 @@ export function loadSettings(): Settings {
   if (!file.exists) return NEW_SETTINGS;
 
   try {
-    return { ...NEW_SETTINGS, ...(JSON.parse(file.textSync()) as Partial<Settings>) };
+    const loaded = { ...NEW_SETTINGS, ...(JSON.parse(file.textSync()) as Partial<Settings>) };
+    return isLanguage(loaded.language) ? loaded : { ...loaded, language: DEFAULT_LANGUAGE };
   } catch {
     // A half-written settings file costs the user one repeated coach card, which
     // is not worth failing a screen over.
@@ -109,4 +116,8 @@ export function markFeedbackAsked(): void {
 /** Remembers a style as the one the next project starts on. */
 export function rememberStyle(styleId: string, styleOverrides: StyleOverrides): void {
   saveSettings({ ...loadSettings(), styleId, styleOverrides });
+}
+
+export function rememberLanguage(language: Language): void {
+  saveSettings({ ...loadSettings(), language });
 }

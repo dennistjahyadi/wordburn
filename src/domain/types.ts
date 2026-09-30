@@ -8,6 +8,7 @@
  * seconds; both convert at their own boundary and nothing inside the domain ever
  * sees a fractional time.
  */
+import type { Language } from './language';
 import type { StyleOverrides } from './style';
 
 /** Integer milliseconds. */
@@ -103,6 +104,12 @@ export interface Project {
    * said, and the timing sheet draws its waveform from the same numbers.
    */
   energyEnvelopeUri?: string;
+  /**
+   * What the clip is spoken in, chosen before the video was picked and passed to
+   * the engine on every call. Absent on projects made before there was a choice,
+   * which were all English: `projectLanguage` reads it.
+   */
+  language?: Language;
 }
 
 export interface DictionaryEntry {

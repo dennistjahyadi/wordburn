@@ -98,3 +98,44 @@ export const welcome = {
   restore: 'Already subscribed? Restore',
   nothingFound: 'No subscription or purchase found for this account.',
 };
+
+export const languages = {
+  chip: (name: string) => `Spoken in ${name}`,
+  sheetTitle: 'What language is spoken?',
+  sheetNote: 'Captions come out in the language that is spoken. Wordburn does not translate.',
+  builtIn: 'Built in',
+  needsPro: 'Pro',
+  needsDownload: 'Download',
+  sharedModel: (size: string) => `Spanish, German, Dutch and Indonesian share one ${size} download.`,
+  downloading: (percent: number) => `Downloading ${percent}%`,
+  proTitle: 'More languages are part of Wordburn Pro',
+  proBody: 'Spanish, German, Dutch and Indonesian captions come with Pro, along with batch captions and auto clip.',
+  proCta: 'See Pro',
+  notNow: 'Not now',
+  downloadTitle: 'Download the language model?',
+  downloadBody: (size: string) =>
+    `Spanish, German, Dutch and Indonesian share one speech model. It is ${size} and downloaded once. Use Wi-Fi if you can.`,
+  download: 'Download',
+  stillDownloading: 'The language model is still downloading',
+  lowMemoryTitle: 'Not available on this phone',
+  stillDownloadingBody: 'It will be ready in a few minutes. You can keep using Wordburn in English meanwhile.',
+  failed: 'The download did not finish',
+  retry: 'Try again',
+  settingsTitle: 'Languages',
+  settingsDetail: {
+    ready: (size: string) => `Model downloaded · ${size}`,
+    absent: 'English only',
+    downloading: (percent: number) => `Downloading ${percent}%`,
+  },
+  manage: {
+    title: 'Languages',
+    english: 'English is built into the app.',
+    model: 'Spanish, German, Dutch and Indonesian',
+    modelNote: (size: string) => `One speech model, ${size}. Downloaded from Hugging Face; your videos never are.`,
+    remove: 'Remove the model',
+    removeTitle: 'Remove the language model?',
+    removeBody: 'Clips already captioned keep their words. You can download it again any time.',
+    cancel: 'Stop download',
+  },
+};
+

@@ -284,7 +284,7 @@ export default function Editor() {
           <QuietButton title="Delete project" tone="signal" onPress={confirmDelete} />
         </View>
         {/* The same wait as Home's, for the same copy. */}
-        {relinking ? <Curtain title="Getting your video ready" note="Nothing is uploaded." /> : null}
+        {relinking ? <Curtain title="Getting your video ready" note="A long clip takes a few seconds." /> : null}
       </Screen>
     );
   }

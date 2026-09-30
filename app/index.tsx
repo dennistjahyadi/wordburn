@@ -1,8 +1,9 @@
 /**
  * Home.
  *
- * One primary action that opens the system picker directly, the free-tier line
- * above the fold where it belongs, and the projects already on this phone.
+ * One primary action that opens the system picker directly, the language the
+ * clip is spoken in above it, the free-tier line above the fold where it
+ * belongs, and the projects already on this phone.
  */
 import * as ImagePicker from 'expo-image-picker';
 import { Redirect, router, useFocusEffect } from 'expo-router';
@@ -10,17 +11,18 @@ import { useCallback, useState } from 'react';
 import { Alert, FlatList, Image, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { accentColor, projectStyle, type Project } from '../src/domain';
+import { accentColor, projectStyle, type Language, type Project } from '../src/domain';
 import { beginProject } from '../src/asr/runner';
 import { requestNotifications } from '../src/native/foreground-service';
 import { freeTierStatus } from '../src/policy/free-tier';
 import { loadEntitlement } from '../src/policy/entitlement-store';
 import { deleteProject, listProjects, loadPipeline, thumbnailFile } from '../src/project/store';
-import { loadSettings } from '../src/project/settings';
+import { loadSettings, rememberLanguage } from '../src/project/settings';
 import { makeThumbnail } from '../src/project/thumbnail';
 import { Label, PrimaryButton, Screen } from '../src/ui/atoms';
 import { Curtain } from '../src/ui/curtain';
 import { describeProject, plural } from '../src/ui/describe';
+import { ensureLanguageReady, LanguageChip } from '../src/ui/language';
 import { FreeTierLine } from '../src/ui/tier';
 import { color, DEFAULT_ACCENT, MIN_TOUCH, radius, space } from '../src/ui/theme';
 
@@ -33,6 +35,7 @@ export default function Home() {
   // read straight off disk, so a first launch never flashes Home on its way to
   // Welcome the way an effect would make it.
   const [welcomeSeen] = useState(() => loadSettings().welcomeSeen);
+  const [language, setLanguage] = useState<Language>(() => loadSettings().language);
 
   useFocusEffect(
     useCallback(() => {
@@ -55,6 +58,9 @@ export default function Home() {
    * curtain covers all of it; only cancelling or an error lifts it here.
    */
   async function pickVideo() {
+    // Before the picker, not after it: a Spanish clip picked while the model is
+    // still downloading would sit in Processing with nothing to run on.
+    if (!ensureLanguageReady(language, 'language')) return;
     setPicking(true);
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -73,7 +79,7 @@ export default function Home() {
       // denial is not a surprise halfway through a transcription.
       await requestNotifications();
 
-      const project = beginProject(asset.uri, Math.round(asset.duration ?? 0));
+      const project = beginProject(asset.uri, Math.round(asset.duration ?? 0), language);
       void makeThumbnail(project);
       router.push(`/processing/${project.id}`);
     } catch (error) {
@@ -137,10 +143,19 @@ export default function Home() {
               </Pressable>
             </View>
             <Label variant="body" tone="mute" style={styles.blurb}>
-              Captions for your video, made on this phone. Nothing is uploaded.
+              Caption one clip, queue a batch, or cut shorts from a long video.
             </Label>
 
             <View style={styles.action}>
+              <LanguageChip
+                language={language}
+                accent={DEFAULT_ACCENT}
+                from="language"
+                onChange={(next) => {
+                  setLanguage(next);
+                  rememberLanguage(next);
+                }}
+              />
               <PrimaryButton
                 title="New video"
                 onPress={pickVideo}
@@ -168,7 +183,7 @@ export default function Home() {
         )}
       />
 
-      {picking ? <Curtain title="Getting your video ready" note="Nothing is uploaded." /> : null}
+      {picking ? <Curtain title="Getting your video ready" note="A long clip takes a few seconds." /> : null}
     </Screen>
   );
 }

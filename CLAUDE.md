@@ -48,12 +48,20 @@ the worklets plugin on its own once the package is present, so there is still no
 
 ## Scope
 
-**v1 is English-only.** Model is `base.en-q8_0`. The multilingual model is
-dropped and there is no language picker anywhere in the app. Non-English words
-inside an English sentence are the dictionary's job. See README for the evidence.
+**Five languages since slice 16: English, Spanish, German, Dutch and
+Indonesian.** English stays on the bundled `base.en-q8_0`, which the Stage 0
+spike chose for English on both speed and accuracy and which nothing here has
+reason to disturb. The other four share one downloaded model,
+`large-v3-turbo-q8_0` (874 MB), chosen in
+`reports/Multilingual Whisper model for Android.md` as the only file a phone can
+plausibly run under about 6.5% word error on read speech in all four. The
+language is always the user's choice, made before the video is picked and
+passed on every call — never auto-detected. Non-English words inside an English
+sentence are still the dictionary's job. See README for the English evidence.
 
-Out of scope: other languages, language detection, translation, cloud anything,
-accounts, trimming, multiple speakers, emoji or B-roll or auto-zoom, iOS
+Out of scope: languages beyond those five, language detection, translation,
+cloud anything, accounts, trimming inside the editor (auto clip trims its own
+ranges; see slice 18), multiple speakers, emoji or B-roll or auto-zoom, iOS
 background continuation, SRT import, and text behind the speaker (the draw list
 reserves `layer` for it; build no segmentation now).
 
@@ -332,11 +340,48 @@ properties rather than presets.
     **Not run on the A54, and nothing bought**, so by the line below this slice
     is not done.
 
+16. Spanish, German, Dutch and Indonesian.
+    **Run end to end on an Android 16 emulator (6 GB, debug build); not on the
+    A54.** The language is picked on Home before the video, remembered, and
+    passed to whisper on every call. English stays on the bundled `base.en`; the
+    other four share `large-v3-turbo-q8_0`, downloaded once from Hugging Face on
+    request, behind Pro, a size check against the file's exact byte count, and a
+    memory check. On the emulator, four text-to-speech clips of 20–24 s each,
+    one per language: word error 6.3% es, 1.9% de, 0% nl, 4.8% id, and every
+    miss a number written as digits ("ciento veinte" → "120"). 70–95 s per clip
+    including the model load — an M3 host running an arm64 image, which says
+    nothing about the A54.
+    Four things this slice found by running it rather than by reading it:
+    **whisper.rn never built the dot-product kernels** that q8_0 is fastest
+    with, so the patch adds a `rnwhisper_v8fp16_dotprod` library and loads it
+    when `/proc/cpuinfo` says `asimddp` (logcat on the emulator:
+    `Loaded native library: rnwhisper_v8fp16_dotprod`).
+    **A byte-level token can end inside a UTF-8 character**, and whisper.rn
+    turned each token into a JS string on its own, so a split "é" would have
+    arrived as two U+FFFD; the patch carries the unfinished bytes to the next
+    token. **A German compound is wider than the frame at the preset's size**,
+    fits the row count, and ran off both edges; the layout now also shrinks for
+    width. **On a 2 GB emulator the model load killed every app on the
+    device**, Wordburn included — the model is read whole into RAM — so the
+    download is not offered below 5.5 GB of physical memory.
+    Emphasis learned the languages too: per-language stopwords, and German's
+    capital letters no longer read as names.
+
 Every slice runs as a release build on the Galaxy A54 before it is called done.
 
 ## Known issues
 
 Eight are left, and none of them can be closed from this machine.
+
+- **The four downloaded languages have never run on a phone.** The emulator
+  proved the path — download, language, model, words, accents — and says
+  nothing about speed: the report's estimate for turbo on the A54 is 40–55 s
+  per minute of audio with the dotprod kernels and 150–180 s without, against
+  a 45 s budget, and the emulator ran on an M3. Time a real minute of each
+  language on the A54, peak memory with the editor open, and the third clip of
+  a batch in a row (heat). If turbo misses, `small-q8_0` (264 MB) carries
+  Spanish and German and not the other two; see the report. Also unrun:
+  anything but text-to-speech, which is kinder to a recogniser than a person.
 
 - **R8 has never run on the A54.** The release build that Play will grade was
   driven end to end on an Android 16 emulator — Welcome, Home, the picker, a

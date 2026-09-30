@@ -558,3 +558,39 @@ function centre(frame: { words: { x: number; width: number }[] }): number {
   const right = Math.max(...frame.words.map((w) => w.x + w.width));
   return (left + right) / 2;
 }
+
+describe('long words and accented text', () => {
+  // German and Dutch compound freely, and one word can be wider than the frame
+  // at the preset's size. The line has only one row, so the row count never
+  // asked for a shrink and the word ran off both edges of the video.
+  const long = [
+    word({ id: 'l1', text: 'De', start: 0, end: 300 }),
+    word({ id: 'l2', text: 'arbeidsongeschiktheidsverzekering', start: 300, end: 1500 }),
+  ];
+
+  it('shrinks a line whose single word is wider than the frame, until it fits', () => {
+    const frame = layoutCaptionFrame(project({ words: long }), style({ maxWordsPerLine: 1 }), 800, canvas, measureMono);
+    for (const drawn of frame.words) {
+      expect(drawn.x).toBeGreaterThanOrEqual(0);
+      expect(drawn.x + drawn.width).toBeLessThanOrEqual(canvas.width);
+    }
+    expect(frame.fontSize).toBeLessThan(1920 * TEXT_SIZE_RATIO.M);
+  });
+
+  it('leaves a line that already fits at the size the style asked for', () => {
+    expect(frameAt(500).fontSize).toBe(1920 * TEXT_SIZE_RATIO.M);
+  });
+
+  it('carries accented and non-Latin letters through untouched', () => {
+    const accented = [
+      word({ id: 'a1', text: '¿Qué', start: 0, end: 300 }),
+      word({ id: 'a2', text: 'Größe', start: 300, end: 600 }),
+      word({ id: 'a3', text: 'één', start: 600, end: 900 }),
+    ];
+    const frame = layoutCaptionFrame(project({ words: accented }), style(), 700, canvas, measureMono);
+    const upper = style().uppercase;
+    expect(frame.words.map((w) => w.text)).toEqual(
+      accented.map((w) => (upper ? w.text.toUpperCase() : w.text))
+    );
+  });
+});

@@ -1,3 +1,39 @@
+diff --git a/node_modules/whisper.rn/android/src/main/CMakeLists.txt b/node_modules/whisper.rn/android/src/main/CMakeLists.txt
+index 8d17d4f..a1911cc 100644
+--- a/node_modules/whisper.rn/android/src/main/CMakeLists.txt
++++ b/node_modules/whisper.rn/android/src/main/CMakeLists.txt
+@@ -114,6 +114,11 @@ endfunction()
+ build_library("rnwhisper" "generic" "")
+ 
+ if (${ANDROID_ABI} STREQUAL "arm64-v8a")
++    # Wordburn: the int8 dot-product instructions (SDOT/UDOT) are what ggml's
++    # q8_0 kernels are fastest with, and every Cortex-A55/A76/A78 has them. The
++    # stock build never compiles them in, so a phone that has them runs q8_0
++    # models on the slower path. Loaded first when /proc/cpuinfo says asimddp.
++    build_library("rnwhisper_v8fp16_dotprod" "arm" "-march=armv8.2-a+fp16+dotprod")
+     build_library("rnwhisper_v8fp16_va_2" "arm" "-march=armv8.2-a+fp16")
+     build_library("rnwhisper_v8" "arm" "-march=armv8-a")
+ elseif (${ANDROID_ABI} STREQUAL "armeabi-v7a")
+diff --git a/node_modules/whisper.rn/android/src/main/java/com/rnwhisper/RNWhisper.java b/node_modules/whisper.rn/android/src/main/java/com/rnwhisper/RNWhisper.java
+index 10e4aa2..72ad402 100644
+--- a/node_modules/whisper.rn/android/src/main/java/com/rnwhisper/RNWhisper.java
++++ b/node_modules/whisper.rn/android/src/main/java/com/rnwhisper/RNWhisper.java
+@@ -38,9 +38,15 @@ public class RNWhisper {
+ 
+     String cpuFeatures = getCpuFeatures();
+     boolean hasFp16 = cpuFeatures.contains("fp16") || cpuFeatures.contains("fphp");
++    boolean hasDotProd = cpuFeatures.contains("asimddp");
+ 
+     try {
+       if (isArm64V8a()) {
++        if (hasFp16 && hasDotProd && tryLoadLibrary("rnwhisper_v8fp16_dotprod")) {
++          libsLoaded = true;
++          return true;
++        }
++
+         if (hasFp16 && tryLoadLibrary("rnwhisper_v8fp16_va_2")) {
+           libsLoaded = true;
+           return true;
 diff --git a/node_modules/whisper.rn/android/src/main/jni.cpp b/node_modules/whisper.rn/android/src/main/jni.cpp
 index fdbda6d..475664b 100644
 --- a/node_modules/whisper.rn/android/src/main/jni.cpp
@@ -16,7 +52,7 @@ index fdbda6d..475664b 100644
  
      if (options.useGpu) {
 diff --git a/node_modules/whisper.rn/cpp/jsi/RNWhisperJSI.cpp b/node_modules/whisper.rn/cpp/jsi/RNWhisperJSI.cpp
-index ac3403e..0294a4f 100644
+index ac3403e..ea246f9 100644
 --- a/node_modules/whisper.rn/cpp/jsi/RNWhisperJSI.cpp
 +++ b/node_modules/whisper.rn/cpp/jsi/RNWhisperJSI.cpp
 @@ -277,10 +277,24 @@ private:
@@ -44,7 +80,55 @@ index ac3403e..0294a4f 100644
  };
  
  struct TranscribeResultData {
-@@ -1352,11 +1366,29 @@ std::vector<SegmentData> readSegments(
+@@ -1332,6 +1346,25 @@ std::vector<float> readWaveAudio(const std::string &pathOrBase64) {
+     return decodeWaveBytes(rnwhisper_jsi::hostLoadFileBytes(pathOrBase64));
+ }
+ 
++/**
++ * Wordburn: the length of the longest prefix of `text` that does not end inside
++ * a multi-byte UTF-8 sequence. Invalid bytes are left for the string conversion
++ * to deal with; only a sequence that is cut short at the very end is held back.
++ */
++static size_t utf8CompleteLength(const std::string &text) {
++    const size_t size = text.size();
++    for (size_t back = 1; back <= 4 && back <= size; ++back) {
++        const unsigned char byte = static_cast<unsigned char>(text[size - back]);
++        if ((byte & 0xC0) == 0x80) continue; // continuation byte, keep looking
++        size_t expected = 1;
++        if ((byte & 0xE0) == 0xC0) expected = 2;
++        else if ((byte & 0xF0) == 0xE0) expected = 3;
++        else if ((byte & 0xF8) == 0xF0) expected = 4;
++        return back < expected ? size - back : size;
++    }
++    return size;
++}
++
+ std::vector<SegmentData> readSegments(
+     whisper_context *context,
+     int start,
+@@ -1344,19 +1377,50 @@ std::vector<SegmentData> readSegments(
+     }
+ 
+     segments.reserve(static_cast<size_t>(count - start));
++    // Wordburn: with maxLen 1 every segment is one byte-level BPE token, and a
++    // token can end in the middle of a UTF-8 character ("é" is two bytes and
++    // the tokenizer may cut between them). Each segment becomes a JS string on
++    // its own, so a split character arrived as two U+FFFD and was lost for
++    // good. The unfinished tail is held back and handed to the next segment,
++    // which is the token that finishes the character.
++    std::string pending;
+     for (int index = start; index < count; ++index) {
+-        std::string text = whisper_full_get_segment_text(context, index);
++        std::string text = pending + whisper_full_get_segment_text(context, index);
++        pending.clear();
++        const size_t complete = utf8CompleteLength(text);
++        if (complete < text.size() && index + 1 < count) {
++            pending = text.substr(complete);
++            text.resize(complete);
++        }
+         if (tdrzEnable && whisper_full_get_segment_speaker_turn_next(context, index)) {
+             text += " [SPEAKER_TURN]";
+         }
          if (resultText) {
              resultText->append(text);
          }
@@ -79,7 +163,7 @@ index ac3403e..0294a4f 100644
      }
  
      return segments;
-@@ -1415,6 +1447,23 @@ jsi::Array createSegmentsArray(
+@@ -1415,6 +1479,23 @@ jsi::Array createSegmentsArray(
              jsi::String::createFromUtf8(runtime, segment.text));
          item.setProperty(runtime, "t0", jsi::Value(segment.t0));
          item.setProperty(runtime, "t1", jsi::Value(segment.t1));
@@ -103,7 +187,7 @@ index ac3403e..0294a4f 100644
          array.setValueAtIndex(runtime, index, item);
      }
      return array;
-@@ -1782,6 +1831,8 @@ void installJSIBindings(
+@@ -1782,6 +1863,8 @@ void installJSIBindings(
              hostOptions.downloadCoreMLAssets =
                  getBoolProperty(runtime, options, "downloadCoreMLAssets", false);
              hostOptions.coreMLAssets = parseCoreMLAssets(runtime, options);

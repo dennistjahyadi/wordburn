@@ -18,6 +18,7 @@ import { letterCount } from './features';
 import type { CaptionLine } from './lines';
 import { isNumeric } from './numbers';
 import { projectUnits } from './project';
+import { projectLanguage, type Language } from './language';
 import { isStopword } from './stopwords';
 import { endsSentence, normalizeForMatch, splitAffixes } from './text';
 import type { DictionaryEntry, Project, Word } from './types';
@@ -78,6 +79,19 @@ export interface EmphasisContext {
   options?: Partial<EmphasisOptions>;
 }
 
+/**
+ * The language-specific half of scoring: which words are barred, and whether a
+ * capital letter means anything. German capitalises every noun, so a capital
+ * mid-sentence there is grammar, not a name, and the bonus would hand every
+ * noun in the clip a head start over the verbs.
+ */
+function languageRules(language: Language): { stopword: (normalized: string) => boolean; capitalsMeanNames: boolean } {
+  return {
+    stopword: (normalized) => isStopword(normalized, language),
+    capitalsMeanNames: language !== 'de',
+  };
+}
+
 /** A word excluded outright scores this, so it can never win any comparison. */
 export const EXCLUDED = Number.NEGATIVE_INFINITY;
 
@@ -92,9 +106,11 @@ export function scoreEmphasis(
   words: Word[],
   features: FeatureSet,
   dict: DictionaryEntry[],
-  opts: Partial<EmphasisOptions> = {}
+  opts: Partial<EmphasisOptions> = {},
+  language: Language = 'en'
 ): Map<string, number> {
   const config = { ...EMPHASIS, ...opts };
+  const rules = languageRules(language);
   const spellings = new Set(
     dict.map((entry) => normalizeForMatch(entry.spelling)).filter((spelling) => spelling !== '')
   );
@@ -103,7 +119,7 @@ export function scoreEmphasis(
   words.forEach((word, index) => {
     const normalized = normalizeForMatch(word.text);
 
-    if (isStopword(normalized) || isLowConfidence(word, config.confidenceThreshold)) {
+    if (rules.stopword(normalized) || isLowConfidence(word, config.confidenceThreshold)) {
       scores.set(word.id, EXCLUDED);
       return;
     }
@@ -128,7 +144,7 @@ export function scoreEmphasis(
     const numeric = isNumeric(word.text);
     if (numeric) score += config.numberBonus;
     if (word.origin === 'dictionary' || spellings.has(normalized)) score += config.dictionaryBonus;
-    if (isProperNoun(words, index)) score += config.properNounBonus;
+    if (rules.capitalsMeanNames && isProperNoun(words, index)) score += config.properNounBonus;
     if (endsSentence(word.text)) score += config.clauseEndBonus;
     if (!numeric && letterCount(word.text) < config.shortWordLetters) {
       score += config.shortWordPenalty;
@@ -172,7 +188,13 @@ export function pickEmphasis(
 
 /** The first pass, run once when a transcript becomes ready. */
 export function computeAutoEmphasis(project: Project, context: EmphasisContext): Project {
-  const scores = scoreEmphasis(project.words, context.features, context.dictionary, context.options);
+  const scores = scoreEmphasis(
+    project.words,
+    context.features,
+    context.dictionary,
+    context.options,
+    projectLanguage(project)
+  );
   return { ...project, autoEmphasis: pickEmphasis(project, scores, context.options) };
 }
 
@@ -216,7 +238,13 @@ export function recomputeEmphasisLocal(
   );
   const kept = surviving.filter((id) => !inWindow.has(id));
 
-  const scores = scoreEmphasis(project.words, context.features, context.dictionary, context.options);
+  const scores = scoreEmphasis(
+    project.words,
+    context.features,
+    context.dictionary,
+    context.options,
+    projectLanguage(project)
+  );
   const config = { ...EMPHASIS, ...context.options };
   const fixed = kept
     .map((id) => project.words.find((word) => word.id === id))

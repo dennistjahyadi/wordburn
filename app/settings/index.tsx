@@ -12,6 +12,7 @@ import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { modelSizeLabel, type ModelState } from '../../src/asr/model-store';
 import { STYLE_PRESETS } from '../../src/domain';
 import { loadDictionary } from '../../src/project/dictionary-store';
 import { loadSettings } from '../../src/project/settings';
@@ -19,7 +20,8 @@ import { loadProStatus, syncEntitlement } from '../../src/policy/entitlement-sto
 import { proStatus, type ProStatus } from '../../src/policy/pro';
 import { Divider, Label, QuietButton, Screen } from '../../src/ui/atoms';
 import { plural } from '../../src/ui/describe';
-import { LINKS, pro, settings as copy } from '../../src/ui/copy';
+import { languages, LINKS, pro, settings as copy } from '../../src/ui/copy';
+import { useModelState } from '../../src/ui/language';
 import { askHowToSendFeedback } from '../../src/ui/feedback';
 import { MIN_TOUCH, space } from '../../src/ui/theme';
 
@@ -28,6 +30,7 @@ export default function Settings() {
   const [words, setWords] = useState(0);
   const [styleName, setStyleName] = useState('');
   const [status, setStatus] = useState(() => loadProStatus());
+  const model = useModelState();
 
   useFocusEffect(
     useCallback(() => {
@@ -72,6 +75,12 @@ export default function Settings() {
         />
         <Divider />
         <Row
+          title={languages.settingsTitle}
+          detail={languageDetail(model)}
+          onPress={() => router.push('/settings/languages')}
+        />
+        <Divider />
+        <Row
           title="Default style"
           detail={styleName}
           onPress={() => router.push('/settings/style')}
@@ -92,6 +101,18 @@ export default function Settings() {
       </View>
     </Screen>
   );
+}
+
+/** Whether the other four languages are on the phone. */
+function languageDetail(model: ModelState): string {
+  switch (model.kind) {
+    case 'ready':
+      return languages.settingsDetail.ready(modelSizeLabel());
+    case 'downloading':
+      return languages.settingsDetail.downloading(Math.floor(model.fraction * 100));
+    default:
+      return languages.settingsDetail.absent;
+  }
 }
 
 /** Where this account stands, in the few words a settings row has room for. */

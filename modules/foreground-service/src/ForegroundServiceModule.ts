@@ -7,6 +7,10 @@ declare class ForegroundServiceModule extends NativeModule {
   update(percent: number): Promise<void>;
   /** Stops the service and clears the notification. */
   stop(): Promise<void>;
+  /** PowerManager's thermal status: 0 none … 3 severe … 6 shutdown. */
+  thermalStatus(): number;
+  /** Physical RAM in bytes. */
+  totalMemory(): number;
   /** Android 13 and up. Resolves true when the notification may be shown. */
   requestNotificationPermission(): Promise<boolean>;
 }

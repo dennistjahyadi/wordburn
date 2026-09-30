@@ -20,16 +20,21 @@ import {
   dictionaryPrompt,
   computeEnvelopeFromPcm16,
   createIdFactory,
+  languageName,
   lineFlagsFor,
+  needsDownloadedModel,
   packSpansIntoChunks,
+  projectLanguage,
   toWords,
   wordFeatures,
   type DictionaryEntry,
+  type Language,
   type Ms,
   type Project,
   type Span,
 } from '../domain';
 import * as service from '../native/foreground-service';
+import { isModelReady } from './model-store';
 import {
   createProject,
   envelopeFile,
@@ -156,8 +161,8 @@ export function cancelRun(): void {
 }
 
 /** Creates the project row first, so a crash during extraction loses nothing. */
-export function beginProject(sourceUri: string, durationMs: Ms): Project {
-  const created = createProject(sourceUri, durationMs);
+export function beginProject(sourceUri: string, durationMs: Ms, language: Language = 'en'): Project {
+  const created = createProject(sourceUri, durationMs, language);
 
   // Then the video itself, before any decoding: what the picker returned is a
   // copy in a cache the system may clear, and a project that outlives its video
@@ -214,7 +219,16 @@ async function run(initial: Project): Promise<void> {
     // to hold up a transcription. See `update` below.
     void service.start('Captioning your video', 0);
 
-    context = await openWhisper();
+    // The downloaded model can be deleted from Settings between a project being
+    // made and being resumed. Said plainly, rather than as whatever whisper.cpp
+    // says about a file that is not there.
+    const language = projectLanguage(project);
+    if (needsDownloadedModel(language) && !isModelReady()) {
+      throw new Error(
+        `The ${languageName(language)} model is not on this phone. Download it from Settings → Languages and try again.`
+      );
+    }
+    context = await openWhisper(language);
     const pass = await transcribeAll(project, pcm, pipeline, context, dictionary);
     project = pass.project;
     // Stopping part way through is not finishing. The checkpoint holds and the
@@ -346,6 +360,7 @@ async function transcribeAll(
     const chunk = pipeline.chunks[index];
     const handle = transcribeChunk(context, pcm, chunk, {
       prompt,
+      language: projectLanguage(project),
       onProgress: (percent) => {
         const within = chunk.t0Ms + ((chunk.t1Ms - chunk.t0Ms) * percent) / 100;
         publish({ fraction: 0.02 + 0.96 * (within / total) });

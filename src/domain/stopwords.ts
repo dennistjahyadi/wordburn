@@ -4,8 +4,8 @@
  * Pure TypeScript. No react-native imports belong in this directory.
  *
  * A caption app that blows up "the" because the speaker happened to lean on it
- * looks broken, so these are excluded outright rather than scored down. The list
- * is English because v1 is English.
+ * looks broken, so these are excluded outright rather than scored down. This is
+ * English's list; the other four languages have shorter ones in `language.ts`.
  *
  * Fillers are in here too. "Like", "just", "really", "so", "um" are often the
  * loudest and longest things a creator says, which is exactly why they need to
@@ -14,6 +14,8 @@
  * Entries are compared after `normalizeForMatch`, so they are lowercase and
  * carry no punctuation.
  */
+import { OTHER_STOPWORDS, type Language } from './language';
+
 export const STOPWORDS: ReadonlySet<string> = new Set([
   // Articles and determiners
   'a', 'an', 'the', 'this', 'that', 'these', 'those', 'some', 'any', 'each', 'every',
@@ -49,6 +51,6 @@ export const STOPWORDS: ReadonlySet<string> = new Set([
   'here', 'there', 'now', 'not', 'only', 'even', 'still', 'already', 'always', 'never',
 ]);
 
-export function isStopword(normalized: string): boolean {
-  return STOPWORDS.has(normalized);
+export function isStopword(normalized: string, language: Language = 'en'): boolean {
+  return language === 'en' ? STOPWORDS.has(normalized) : OTHER_STOPWORDS[language].has(normalized);
 }

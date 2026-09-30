@@ -13,7 +13,55 @@ import { Platform } from 'react-native';
 
 import ForegroundService from '../../modules/foreground-service';
 
+/**
+ * A batch holds the service for its whole length. While it is held, the start
+ * and stop that transcription, export and the model download each make are
+ * folded into it: a stop between two clips would let the notification drop and
+ * the process with it, for the second it takes the next clip to start.
+ */
+let held = false;
+
+export async function hold(text: string, percent: number): Promise<void> {
+  held = true;
+  await startService(text, percent);
+}
+
+/** Retitles a held service: "Captioning 3 of 12". */
+export async function retitle(text: string, percent: number): Promise<void> {
+  if (held) await startService(text, percent);
+}
+
+export async function release(): Promise<void> {
+  held = false;
+  await stop();
+}
+
+/** The phone's thermal status, or 0 where there is no way to ask. */
+export function thermalStatus(): number {
+  if (Platform.OS !== 'android') return 0;
+  try {
+    return ForegroundService.thermalStatus();
+  } catch {
+    return 0;
+  }
+}
+
+/** Physical RAM in bytes, or null where there is no way to ask. */
+export function totalMemory(): number | null {
+  if (Platform.OS !== 'android') return null;
+  try {
+    return ForegroundService.totalMemory();
+  } catch {
+    return null;
+  }
+}
+
 export async function start(text: string, percent: number): Promise<void> {
+  if (held) return update(percent);
+  await startService(text, percent);
+}
+
+async function startService(text: string, percent: number): Promise<void> {
   if (Platform.OS !== 'android') return;
   try {
     await ForegroundService.start(text, percent);
@@ -33,7 +81,7 @@ export async function update(percent: number): Promise<void> {
 }
 
 export async function stop(): Promise<void> {
-  if (Platform.OS !== 'android') return;
+  if (Platform.OS !== 'android' || held) return;
   try {
     await ForegroundService.stop();
   } catch {

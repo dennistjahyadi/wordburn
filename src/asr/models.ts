@@ -13,6 +13,9 @@
  */
 import { Directory, File, Paths } from 'expo-file-system';
 
+import { needsDownloadedModel, type Language } from '../domain';
+import { modelFile, MULTILINGUAL_MODEL, type DownloadedModel } from './model-store';
+
 export interface ModelFile {
   /** The name inside the APK's assets, which is the name in `assets/models`. */
   assetName: string;
@@ -36,6 +39,28 @@ export const REQUIRED_MODELS = [WHISPER_MODEL, VAD_MODEL];
  * model-specific and a wrong set gives timestamps that look plausible and are not.
  */
 export const DTW_PRESET = 'base.en' as const;
+
+/**
+ * What to open for a clip in this language, and the preset that goes with it.
+ *
+ * English stays on the bundled `base.en`, which the Stage 0 spike chose over
+ * multilingual models for English on both speed and accuracy. Everything else
+ * is the downloaded multilingual model, opened by path. The caller is expected
+ * to have checked `isModelReady` first; opening a model that is not there fails
+ * inside whisper.cpp with a message nobody can act on.
+ */
+export function whisperModelFor(language: Language): {
+  source: { filePath: string; isBundleAsset?: true };
+  dtwPreset: typeof DTW_PRESET | DownloadedModel['dtwPreset'];
+} {
+  if (!needsDownloadedModel(language)) {
+    return { source: bundledModel(WHISPER_MODEL), dtwPreset: DTW_PRESET };
+  }
+  return {
+    source: { filePath: modelFile(MULTILINGUAL_MODEL).uri.replace('file://', '') },
+    dtwPreset: MULTILINGUAL_MODEL.dtwPreset,
+  };
+}
 
 /**
  * How whisper.rn is told to look inside the APK rather than on the filesystem.

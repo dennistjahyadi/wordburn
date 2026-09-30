@@ -14,8 +14,8 @@ import {
   type WhisperContext,
 } from 'whisper.rn';
 
-import { mergeTokensIntoWords, offsetWords, type AsrWord, type Span } from '../domain';
-import { bundledModel, DTW_PRESET, VAD_MODEL, WHISPER_MODEL } from './models';
+import { mergeTokensIntoWords, offsetWords, type AsrWord, type Language, type Span } from '../domain';
+import { bundledModel, VAD_MODEL, whisperModelFor } from './models';
 
 export const SAMPLE_RATE = 16_000;
 const BYTES_PER_SAMPLE = 2;
@@ -80,13 +80,15 @@ export async function detectSpeech(pcm: ArrayBuffer): Promise<Span[]> {
   }
 }
 
-export async function openWhisper(): Promise<WhisperContext> {
+/** Opens the model for this language: the bundled English one, or the downloaded one. */
+export async function openWhisper(language: Language = 'en'): Promise<WhisperContext> {
+  const model = whisperModelFor(language);
   return initWhisper({
-    ...bundledModel(WHISPER_MODEL),
+    ...model.source,
     useGpu,
     // A local patch to whisper.rn. Turns on whisper.cpp's DTW token timestamps
     // and returns a probability per token, which is the low-confidence signal.
-    dtwAheadsPreset: DTW_PRESET,
+    dtwAheadsPreset: model.dtwPreset,
   });
 }
 
@@ -113,7 +115,7 @@ export function transcribeChunk(
   context: WhisperContext,
   pcm: ArrayBuffer,
   chunk: Span,
-  options: { prompt?: string; onProgress?: (percent: number) => void } = {}
+  options: { prompt?: string; language?: Language; onProgress?: (percent: number) => void } = {}
 ): ChunkHandle {
   const slice = pcm.slice(
     msToByteOffset(chunk.t0Ms),
@@ -123,7 +125,10 @@ export function transcribeChunk(
   const transcribeOptions: TranscribeOptions & {
     onProgress?: (progress: number) => void;
   } = {
-    language: 'en',
+    // Always said, never guessed. Left out, this build means English rather than
+    // auto; auto would cost an extra encoder pass per chunk and could switch
+    // language between two chunks of one clip.
+    language: options.language ?? 'en',
     translate: false,
     maxThreads: MAX_THREADS,
     maxLen: 1,

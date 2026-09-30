@@ -13,6 +13,7 @@ export * from './features';
 export * from './history';
 export * from './ids';
 export * from './invariants';
+export * from './language';
 export * from './layout';
 export * from './lines';
 export * from './numbers';

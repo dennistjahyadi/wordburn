@@ -88,3 +88,17 @@ describe('offsetWords', () => {
     expect(original).toEqual([{ text: 'hi', t0Ms: 10, t1Ms: 200 }]);
   });
 });
+
+describe('tokens in other languages', () => {
+  it('keeps accented letters inside the word they belong to', () => {
+    const words = mergeTokensIntoWords([
+      { text: ' ¿Qu', t0Ms: 0, t1Ms: 100 },
+      { text: 'é', t0Ms: 100, t1Ms: 200 },
+      { text: ' tal', t0Ms: 200, t1Ms: 400 },
+      { text: '?', t0Ms: 400, t1Ms: 420 },
+      { text: ' Grö', t0Ms: 500, t1Ms: 600 },
+      { text: 'ße', t0Ms: 600, t1Ms: 700 },
+    ]);
+    expect(words.map((w) => w.text)).toEqual(['¿Qué', 'tal?', 'Größe']);
+  });
+});

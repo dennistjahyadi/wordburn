@@ -12,7 +12,7 @@
  */
 import { Directory, File, Paths } from 'expo-file-system';
 
-import type { Ms, Project, ProjectStatus } from '../domain';
+import type { Language, Ms, Project, ProjectStatus } from '../domain';
 import { loadSettings } from './settings';
 
 /** Bumped when the on-disk shape changes in a way an old file cannot satisfy. */
@@ -70,7 +70,7 @@ export function newProjectId(): string {
  * Nothing has been decoded yet and that is the point: the row is on Home, and a
  * crash during extraction loses a few seconds rather than the user's place.
  */
-export function createProject(sourceUri: string, durationMs: Ms): Project {
+export function createProject(sourceUri: string, durationMs: Ms, language: Language = 'en'): Project {
   // The look the user settled on last time. A creator has a style, not a style
   // per clip, so a new project starts where the last one ended up.
   const settings = loadSettings();
@@ -88,6 +88,7 @@ export function createProject(sourceUri: string, durationMs: Ms): Project {
     globalOffsetMs: 0,
     styleId: settings.styleId,
     styleOverrides: settings.styleOverrides,
+    language,
   };
 
   saveProject(project);

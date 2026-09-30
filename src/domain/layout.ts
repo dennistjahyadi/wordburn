@@ -436,11 +436,17 @@ function flowPlan(
   let fontSize = baseFontSize;
   let rows = wrapRows(words, emphasisIndex, style, fontSize, available, measure, baseFace, emphasisFace);
 
-  // Shrink until the line fits the allowed number of rows. Deterministic, so the
-  // preview and the export shrink by the same amount on the same line.
+  // Shrink until the line fits the allowed number of rows, and until no row is
+  // wider than the frame. The second half is for German and Dutch, which
+  // compound: "arbeidsongeschiktheidsverzekering" is one word, gets a row to
+  // itself, satisfies the row count and ran off both edges of the video.
+  // Deterministic, so the preview and the export shrink by the same amount on
+  // the same line.
   for (
     let pass = 0;
-    rows.length > style.maxRows && fontSize > minFontSize && pass < MAX_SHRINK_PASSES;
+    (rows.length > style.maxRows || rows.some((row) => row.width > available)) &&
+    fontSize > minFontSize &&
+    pass < MAX_SHRINK_PASSES;
     pass += 1
   ) {
     fontSize = Math.max(minFontSize, fontSize * SHRINK_STEP);
