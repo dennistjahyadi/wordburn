@@ -4,7 +4,10 @@
  * Pure TypeScript, unit tested, no react-native imports anywhere below this file.
  * Screens and native wrappers import from here; nothing in here imports from them.
  */
+export * from './autoclip';
+export * from './batch';
 export * from './confidence';
+export * from './deadair';
 export * from './dictionary';
 export * from './editing';
 export * from './emphasis';

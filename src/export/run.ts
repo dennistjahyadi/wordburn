@@ -13,7 +13,7 @@ import { Album, Asset, getPermissionsAsync, requestPermissionsAsync, type Granul
 
 import { track } from '../analytics/events';
 import BurnIn, { type SavedFile, type VideoInfo } from '../../modules/burn-in';
-import ForegroundService from '../../modules/foreground-service';
+import * as ForegroundService from '../native/foreground-service';
 import { projectStyle, projectUnits, toSrt, type MeasureText, type Ms, type Project } from '../domain';
 import { loadEntitlement, saveEntitlement } from '../policy/entitlement-store';
 import { freeTierStatus, recordExport } from '../policy/free-tier';
@@ -43,6 +43,12 @@ export interface ExportRequest {
   onProgress(done: number): void;
   /** Which door the export came through, for the event log and nothing else. */
   kind?: 'single' | 'batch' | 'autoclip';
+  /**
+   * What to call the file, without its extension. A batch names each clip after
+   * the one it came from (`<original>_captioned`); a single export is named by
+   * date, which is what `fileName` does when this is left out.
+   */
+  name?: string;
 }
 
 export interface ExportOutcome {
@@ -181,7 +187,7 @@ export async function runExport(request: ExportRequest): Promise<ExportOutcome> 
     // Renamed before it is published, because the gallery and the share sheet
     // both take their name from the file. One arriving in somebody's messages as
     // `export.mp4` is this app's name on their screen, and it is the wrong one.
-    const name = fileName(project, started);
+    const name = request.name ?? fileName(project, started);
     const shareable = keepAs(directory, outputFile, `${name}.mp4`);
     const video = await publish(shareable, `${name}.mp4`);
     const srt = alsoSrt ? await saveSrt(project, directory, name) : null;
@@ -250,7 +256,10 @@ async function publish(path: string, name: string): Promise<{ name: string; byte
 function keepAs(directory: Directory, rendered: File, name: string): string {
   try {
     for (const entry of directory.list()) {
-      if (entry instanceof File && entry.name.startsWith(EXPORT_PREFIX) && entry.name.endsWith('.mp4')) {
+      const ours =
+        (entry.name.startsWith(EXPORT_PREFIX) && entry.name.endsWith('.mp4')) ||
+        /_captioned( \d+)?\.mp4$/.test(entry.name);
+      if (entry instanceof File && ours) {
         entry.delete();
       }
     }

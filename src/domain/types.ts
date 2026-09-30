@@ -110,6 +110,16 @@ export interface Project {
    * which were all English: `projectLanguage` reads it.
    */
   language?: Language;
+  /**
+   * `autoclip` for a long video read only to find clips in. It opens on its
+   * suggestions rather than in the editor, and is never exported whole. Absent
+   * for everything else.
+   */
+  purpose?: 'autoclip';
+  /** The picked file's own name, without its extension, where the picker gave one. */
+  sourceName?: string;
+  /** When set, only this much of the source is transcribed. Auto clip's cap. */
+  transcribeUntilMs?: Ms;
 }
 
 export interface DictionaryEntry {

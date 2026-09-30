@@ -103,11 +103,12 @@ internal class VideoBurner(
         surfaceTexture = surfaceTexture,
         ready = ready,
         audioFormat = audioTrack?.let { extractor.getTrackFormat(it) },
-        durationMs = if (sourceDurationMs > 0) sourceDurationMs else plan.durationMs,
+        durationMs = plan.segments?.let { list -> list.sumOf { it.lengthUs } / 1000 }
+          ?: if (sourceDurationMs > 0) sourceDurationMs else plan.durationMs,
       )
 
       if (audioTrack != null && written.audioTrackIndex >= 0) {
-        copyAudio(muxer, written.audioTrackIndex)
+        copyAudio(muxer, written.audioTrackIndex, plan.segments)
       }
 
       muxer.stop()
@@ -173,6 +174,15 @@ internal class VideoBurner(
     var audioTrackIndex = -1
     var muxing = false
 
+    // Auto clip's cut, when there is one: which stretch is playing, where it
+    // lands on the output's timeline, and the last timestamp written, which
+    // every later frame must be after.
+    val segments = plan.segments
+    var segmentIndex = 0
+    var segmentOffsetUs = 0L
+    var lastOutputUs = -1L
+    if (segments != null) extractor.seekTo(segments[0].startUs, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
+
     var entryShowing = -1
     var frames = 0
     var lastPresentationMs = 0L
@@ -205,8 +215,35 @@ internal class VideoBurner(
 
           else -> {
             if (index >= 0) {
-              val render = decoded.size > 0
-              val presentationUs = decoded.presentationTimeUs
+              val sourceUs = decoded.presentationTimeUs
+              val segment = segments?.get(segmentIndex)
+
+              // Past the end of the stretch being kept: that stretch is done.
+              // Decoders hand frames back in presentation order, so nothing
+              // still inside it can follow. Whatever is queued behind this frame
+              // belongs to the gap, and a flush throws it away before the seek.
+              if (segment != null && sourceUs > segment.endUs) {
+                decoder.releaseOutputBuffer(index, false)
+                segmentOffsetUs += segment.lengthUs
+                segmentIndex += 1
+                if (segmentIndex >= segments.size) {
+                  sawInputEos = true
+                  sawDecoderEos = true
+                  encoder.signalEndOfInputStream()
+                } else {
+                  decoder.flush()
+                  extractor.seekTo(segments[segmentIndex].startUs, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
+                  sawInputEos = false
+                }
+                continue
+              }
+
+              // Frames decoded from the keyframe before a stretch, only so the
+              // stretch's first frame could be built, are never shown.
+              val render = decoded.size > 0 && (segment == null || sourceUs >= segment.startUs)
+              var presentationUs = if (segment == null) sourceUs else segmentOffsetUs + (sourceUs - segment.startUs)
+              if (render && presentationUs <= lastOutputUs) presentationUs = lastOutputUs + 1
+              if (render) lastOutputUs = presentationUs
               decoder.releaseOutputBuffer(index, render)
 
               if (render) {
@@ -287,7 +324,7 @@ internal class VideoBurner(
    * The user's voice is the one thing in this file that was already exactly
    * right, and a second lossy pass over it would be damage for nothing.
    */
-  private fun copyAudio(muxer: MediaMuxer, outputTrack: Int) {
+  private fun copyAudio(muxer: MediaMuxer, outputTrack: Int, segments: List<BurnSegment>?) {
     // Its own extractor: the video one is mid-stream with a track selected, and
     // an audio pass that had to reason about where it left off would be a second
     // kind of state to get wrong.
@@ -300,24 +337,46 @@ internal class VideoBurner(
 
       val buffer = ByteBuffer.allocateDirect(AUDIO_BUFFER_BYTES)
       val info = MediaCodec.BufferInfo()
+      var lastUs = -1L
 
-      while (true) {
-        if (cancelled.get()) throw CancelledException()
+      // The whole track, or each kept stretch laid end to end. Still copied, not
+      // re-encoded: a cut lands on the nearest compressed frame, about 21 ms of
+      // AAC, which is well inside the padding the cut left either side of it.
+      val stretches = segments ?: listOf(null)
+      var offsetUs = 0L
+      for (stretch in stretches) {
+        if (stretch != null) extractor.seekTo(stretch.startUs, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
 
-        val read = extractor.readSampleData(buffer, 0)
-        if (read < 0) break
+        while (true) {
+          if (cancelled.get()) throw CancelledException()
 
-        info.offset = 0
-        info.size = read
-        info.presentationTimeUs = extractor.sampleTime
-        info.flags = if (extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC != 0) {
-          MediaCodec.BUFFER_FLAG_KEY_FRAME
-        } else {
-          0
+          val read = extractor.readSampleData(buffer, 0)
+          if (read < 0) break
+          val sourceUs = extractor.sampleTime
+          if (stretch != null && sourceUs >= stretch.endUs) break
+          if (stretch != null && sourceUs < stretch.startUs) {
+            extractor.advance()
+            continue
+          }
+
+          var presentationUs = if (stretch == null) sourceUs else offsetUs + (sourceUs - stretch.startUs)
+          if (presentationUs <= lastUs) presentationUs = lastUs + 1
+          lastUs = presentationUs
+
+          info.offset = 0
+          info.size = read
+          info.presentationTimeUs = presentationUs
+          info.flags = if (extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC != 0) {
+            MediaCodec.BUFFER_FLAG_KEY_FRAME
+          } else {
+            0
+          }
+
+          muxer.writeSampleData(outputTrack, buffer, info)
+          extractor.advance()
         }
 
-        muxer.writeSampleData(outputTrack, buffer, info)
-        extractor.advance()
+        if (stretch != null) offsetUs += stretch.lengthUs
       }
     } finally {
       quietly { extractor.release() }

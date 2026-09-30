@@ -16,7 +16,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { styleOverridesFor, type StyleChoices, type StyleOverrides } from '../../src/domain';
+import {
+  accentColor,
+  resolveStyle,
+  styleOverridesFor,
+  type StyleChoices,
+  type StyleOverrides,
+} from '../../src/domain';
 import { StylePicker } from '../../src/editor/StylePicker';
 import { loadSettings, rememberStyle } from '../../src/project/settings';
 import { CaptionLayer } from '../../src/render/CaptionLayer';
@@ -26,6 +32,8 @@ import { SAMPLE_LOOP_MS, sampleProject } from '../../src/render/sample';
 import { useCaptionFonts } from '../../src/render/typefaces';
 import { Label, QuietButton, Screen } from '../../src/ui/atoms';
 import { useClock } from '../../src/ui/clock';
+import { looks } from '../../src/ui/copy';
+import { SaveLookSheet } from '../../src/ui/save-look';
 import { useReducedMotion } from '../../src/ui/motion';
 import { containRect, SafeZone } from '../../src/ui/stage';
 import { space } from '../../src/ui/theme';
@@ -54,6 +62,7 @@ const SAVE_DEBOUNCE_MS = 300;
 
 export default function DefaultStyle() {
   const insets = useSafeAreaInsets();
+  const [saving, setSaving] = useState(false);
 
   const [chosen, setChosen] = useState<{ styleId: string; styleOverrides: StyleOverrides }>(() => {
     const settings = loadSettings();
@@ -125,7 +134,7 @@ export default function DefaultStyle() {
         <Label variant="label" tone="mute">
           Default style
         </Label>
-        <View style={styles.balance} />
+        <QuietButton title={looks.save} onPress={() => setSaving(true)} />
       </View>
 
       <View style={[styles.stage, { height: stageHeight }]}>
@@ -166,6 +175,15 @@ export default function DefaultStyle() {
           videos you have already captioned alone.
         </Label>
       </View>
+      {saving ? (
+        <SaveLookSheet
+          styleId={chosen.styleId}
+          styleOverrides={chosen.styleOverrides}
+          accent={accentColor(resolveStyle(chosen.styleId, chosen.styleOverrides))}
+          onClose={() => setSaving(false)}
+          onSaved={() => setSaving(false)}
+        />
+      ) : null}
     </Screen>
   );
 }

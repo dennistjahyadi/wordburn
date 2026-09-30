@@ -5,6 +5,7 @@ import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { pruneDownloadedModels } from '../src/asr/models';
+import { QueueHost } from '../src/batch/host';
 import { syncEntitlement } from '../src/policy/entitlement-store';
 import { color } from '../src/ui/theme';
 import { useAppFonts } from '../src/ui/fonts';
@@ -29,6 +30,8 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
+      {/* Draws nothing. It is what keeps a batch running whatever screen is up. */}
+      {fontsLoaded ? <QueueHost /> : null}
       {/* The ground is painted before anything else, so the first frame after
           the splash is never a white flash on a dark app. */}
       {fontsLoaded ? (

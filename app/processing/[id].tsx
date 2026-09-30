@@ -64,7 +64,13 @@ export default function Processing() {
   useEffect(() => {
     // Straight into the editor. No "Done!" interstitial, and `replace` so that
     // going back from the editor lands on Home rather than on a finished bar.
-    if (run?.stage === 'ready') router.replace(`/project/${run.project.id}`);
+    // A long video read for auto clip goes to its suggestions, not the editor:
+    // nobody wants to scroll an hour of transcript to find the good minute.
+    if (run?.stage === 'ready') {
+      router.replace(
+        run.project.purpose === 'autoclip' ? `/autoclip/${run.project.id}` : `/project/${run.project.id}`
+      );
+    }
   }, [run?.stage]);
 
   if (!project) {

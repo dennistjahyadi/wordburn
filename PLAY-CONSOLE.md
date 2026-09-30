@@ -483,8 +483,22 @@ and below, which have no media processing type. Only one is ever used per
 device and neither runs except while a transcription or an export is in
 progress.
 
-The service performs no network activity of any kind.
+The same service keeps a batch the user started running from one clip to the
+next — up to 30 clips they picked, transcribed and captioned one after another
+— with a notification that says which clip it is on. It stops when the batch
+finishes, fails or is paused.
 ```
+
+**Changed with batch captions and the language model, and it is not a small
+change.** The declaration above used to end "The service performs no network
+activity of any kind." That is no longer true: the same service holds the
+process while the Spanish/German/Dutch/Indonesian model downloads (874 MB, once,
+on request), which is a `dataSync` use and not a media-processing one. Either
+declare **Data sync** as a second use case with its own sentence — "downloads a
+speech model the user asked for, once, with a progress notification" — or move
+the download off the service. The first is the honest one and costs a second
+line in the video: start a Spanish download, background the app, show the
+notification. Do not submit the old paragraph with the new build.
 
 **This declaration asks for a link to a video demonstrating the feature.** Plan
 for it: screen-record the A54 picking a clip, transcription starting, the

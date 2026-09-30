@@ -97,6 +97,11 @@ internal data class BurnWatermark(
   val lines: List<BurnMarkLine>,
 )
 
+/** A stretch of the source to keep, in microseconds of the source's own timeline. */
+internal data class BurnSegment(val startUs: Long, val endUs: Long) {
+  val lengthUs: Long get() = endUs - startUs
+}
+
 internal data class BurnPlan(
   val width: Int,
   val height: Int,
@@ -104,6 +109,12 @@ internal data class BurnPlan(
   val durationMs: Long,
   val watermark: BurnWatermark?,
   val entries: List<BurnEntry>,
+  /**
+   * Null to burn the whole source. Otherwise only these stretches, in order,
+   * laid end to end: auto clip's range, with the dead air cut out of it. Entry
+   * times are on that shorter timeline, not the source's.
+   */
+  val segments: List<BurnSegment>?,
 ) {
   /** The entry showing at `tMs`, given the one showing now. Entries only move forward. */
   fun entryAt(tMs: Long, from: Int): Int {
@@ -145,6 +156,12 @@ internal object PlanReader {
       durationMs = json.getLong("durationMs"),
       watermark = watermark(json.optJSONObject("watermark")),
       entries = entries,
+      segments = json.optJSONArray("segments")?.let { list ->
+        (0 until list.length()).map { index ->
+          val segment = list.getJSONObject(index)
+          BurnSegment(segment.getLong("startMs") * 1000, segment.getLong("endMs") * 1000)
+        }.filter { it.lengthUs > 0 }.ifEmpty { null }
+      },
     )
   }
 

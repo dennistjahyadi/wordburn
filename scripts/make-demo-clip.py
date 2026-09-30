@@ -24,6 +24,7 @@ with anything set across the top anyway.
 
     python3 scripts/make-demo-clip.py             # 0:20, the listing clip
     python3 scripts/make-demo-clip.py long        # 1:15, for the slow screens
+    python3 scripts/make-demo-clip.py podcast     # ~6:00, for auto clip
     adb push test-clips/demo/demo-1080x1920.mp4 /sdcard/Movies/
 
 Two lengths because they answer different questions. The short one is what the
@@ -82,7 +83,45 @@ LONG = SHORT + (
 # Transcribing stage, and to have something to point the checkpointing at.
 XLONG = " ".join([LONG] * 3)
 
-SCRIPTS = {"short": SHORT, "long": LONG, "xlong": XLONG}
+# A six-minute episode for auto clip, which refuses anything under five. It is
+# written to have moments in it: an intro and an outro the scorer should skip,
+# talk that goes nowhere in particular, and four passages that open with a hook
+# or a question and land on a point. `[[slnc]]` is `say`'s own pause, so the
+# silences between passages are real silence for Remove dead air to find.
+_PAUSE = " [[slnc 1300]] "
+_TALK = [
+    "So we had the lights set up, the camera, the microphone, all of it.",
+    "Honestly the first few weeks were mostly about getting the schedule right.",
+    "My co-host had a lot of opinions about the colour grading, as usual.",
+    "We went through three editors before we found one we liked.",
+    "There was a lot of back and forth about the thumbnails.",
+    "Some weeks we recorded on a Monday, some weeks on a Friday.",
+]
+_MOMENTS = [
+    "Here's the thing nobody tells you about pricing. You are almost always "
+    "charging too little. When we doubled our rate, we lost two clients and "
+    "gained five. A low price tells people you are not sure you are worth it.",
+    "What if the biggest mistake you are making is working on too many things "
+    "at once? We had six projects running last spring and every one was late. "
+    "We cut down to two, and both shipped early. Focus is a decision you make "
+    "every morning.",
+    "The truth is that consistency beats talent. The most talented person I "
+    "know posts twice a year. The most consistent posts every day, and she now "
+    "runs a studio of twelve people.",
+    "Why do people burn out? Because they never decide what done looks like. "
+    "Write down what finished means before you start, and stop when you get "
+    "there.",
+]
+PODCAST = _PAUSE.join(
+    ["Welcome back to the show, and thanks for watching. Today we are talking "
+     "about building a creative business from nothing."]
+    + [part for moment in _MOMENTS for part in (_TALK + _TALK[::-1] + [moment])]
+    + _TALK
+    + ["That's all for today. Thanks for watching, subscribe, and see you next "
+       "week."]
+)
+
+SCRIPTS = {"short": SHORT, "long": LONG, "xlong": XLONG, "podcast": PODCAST}
 
 # Warm, low-contrast, and dark enough that white captions hold without a plate
 # and light enough that the dark-on-yellow box preset does too. Drawn at 1.5x so

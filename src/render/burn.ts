@@ -28,6 +28,7 @@ import {
   type Ms,
   type Project,
   type ShadowDraw,
+  type SourceRange,
   type WatermarkDraw,
 } from '../domain';
 import { faceKey } from './faces';
@@ -126,6 +127,12 @@ export interface BurnPlan {
    */
   watermark?: BurnWatermark;
   entries: BurnEntry[];
+  /**
+   * Only these stretches of the source, laid end to end, when present. Auto
+   * clip's cut uses it; every other export burns the whole file and leaves it
+   * out.
+   */
+  segments?: SourceRange[];
 }
 
 export interface BurnPlanOptions {
@@ -264,4 +271,29 @@ export function exportSize(
 
 function even(value: number): number {
   return Math.max(2, Math.round(value / 2) * 2);
+}
+
+/**
+ * The plan for auto clip's cut: the kept stretches of the source and nothing
+ * drawn over them.
+ *
+ * A cut is its own pass, before any captions, so that what it produces is an
+ * ordinary video that an ordinary project can own — the editor, the preview and
+ * the export then work on it exactly as they work on a clip from the gallery,
+ * and nothing downstream has to learn that a project can point into the middle
+ * of somebody else's file.
+ */
+export function buildCutPlan(
+  size: { width: number; height: number },
+  fps: number,
+  segments: SourceRange[]
+): BurnPlan {
+  const durationMs = segments.reduce((sum, segment) => sum + segment.endMs - segment.startMs, 0);
+  return {
+    ...size,
+    fps,
+    durationMs,
+    entries: [{ tMs: 0, words: [] }],
+    segments,
+  };
 }

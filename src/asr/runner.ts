@@ -55,6 +55,7 @@ import {
   MAX_CHUNK_MS,
   MIN_SPAN_MS,
   openWhisper,
+  msToByteOffset,
   pcmDurationMs,
   SAMPLE_RATE,
   transcribeChunk,
@@ -144,16 +145,35 @@ function publish(next: Partial<RunState>): void {
 export const PROMPT_BIAS = false;
 
 export function startRun(project: Project): void {
-  if (running && current?.projectId === project.id) return;
-  if (running) return;
+  void runToEnd(project);
+}
+
+/** The run in flight, so a second caller can wait for it rather than start one. */
+let inFlight: Promise<RunState | null> | null = null;
+
+/**
+ * Runs a project and resolves with how it ended: ready, failed, or stopped part
+ * way. The batch queue awaits this; a screen calls `startRun` and listens.
+ *
+ * One transcription at a time, because one whisper context is all the phone
+ * has memory for. A call for a different project while one is running waits
+ * for that one to finish and then runs; a call for the same project joins it.
+ */
+export async function runToEnd(project: Project): Promise<RunState | null> {
+  if (running && current?.projectId === project.id && inFlight) return inFlight;
+  while (running && inFlight) await inFlight;
 
   cancelled = false;
   pauseRequested = false;
   current = { projectId: project.id, stage: 'queued', project, fraction: 0 };
   running = true;
-  void run(project).finally(() => {
-    running = false;
-  });
+  inFlight = run(project)
+    .then(() => current)
+    .finally(() => {
+      running = false;
+      inFlight = null;
+    });
+  return inFlight;
 }
 
 export function cancelRun(): void {
@@ -161,8 +181,13 @@ export function cancelRun(): void {
 }
 
 /** Creates the project row first, so a crash during extraction loses nothing. */
-export function beginProject(sourceUri: string, durationMs: Ms, language: Language = 'en'): Project {
-  const created = createProject(sourceUri, durationMs, language);
+export function beginProject(
+  sourceUri: string,
+  durationMs: Ms,
+  language: Language = 'en',
+  extra: Pick<Partial<Project>, 'purpose' | 'sourceName' | 'transcribeUntilMs'> = {}
+): Project {
+  const created = { ...createProject(sourceUri, durationMs, language), ...extra };
 
   // Then the video itself, before any decoding: what the picker returned is a
   // copy in a cache the system may clear, and a project that outlives its video
@@ -203,7 +228,11 @@ async function run(initial: Project): Promise<void> {
     publish({ stage: 'extracting' });
     const pcm = await loadOrExtract(project);
     project = save({
-      ...withRealDuration(loadFresh(project), pcmDurationMs(pcm.byteLength)),
+      // A capped read measures the cap, not the video; the picker's length is
+      // the better number then, and auto clip needs the real one for its outro.
+      ...(project.transcribeUntilMs === undefined
+        ? withRealDuration(loadFresh(project), pcmDurationMs(pcm.byteLength))
+        : loadFresh(project)),
       status: 'transcribing',
     });
 
@@ -291,6 +320,20 @@ async function loadOrExtract(project: Project): Promise<ArrayBuffer> {
 
     await extractPcm16(project.sourceUri, `${pcmPath(project.id)}.part`);
     partial.rename(file.name);
+  }
+
+  // Auto clip reads at most the first hour of a long video. Only that much is
+  // read off disk: two hours of 16 kHz PCM is 230 MB, and holding it all to use
+  // half would be a memory spike for nothing.
+  const limit = project.transcribeUntilMs;
+  if (limit !== undefined && msToByteOffset(limit) < (file.size ?? 0)) {
+    const handle = file.open();
+    try {
+      const part = handle.readBytes(msToByteOffset(limit));
+      return part.buffer.slice(part.byteOffset, part.byteOffset + part.byteLength);
+    } finally {
+      handle.close();
+    }
   }
 
   const bytes = await file.bytes();

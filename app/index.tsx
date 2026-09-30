@@ -7,12 +7,26 @@
  */
 import * as ImagePicker from 'expo-image-picker';
 import { Redirect, router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, Image, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { accentColor, projectStyle, type Language, type Project } from '../src/domain';
+import {
+  accentColor,
+  MAX_BATCH_CLIPS,
+  pickedClipName,
+  projectStyle,
+  summarize,
+  type Batch,
+  type Language,
+  type Project,
+} from '../src/domain';
 import { beginProject } from '../src/asr/runner';
+import { setDraft } from '../src/batch/draft';
+import { currentBatch, subscribeBatch } from '../src/batch/queue';
+import { isPro } from '../src/policy/pro';
+import { loadProStatus } from '../src/policy/entitlement-store';
+import { autoclip, batch as batchCopy } from '../src/ui/copy';
 import { requestNotifications } from '../src/native/foreground-service';
 import { freeTierStatus } from '../src/policy/free-tier';
 import { loadEntitlement } from '../src/policy/entitlement-store';
@@ -36,6 +50,8 @@ export default function Home() {
   // Welcome the way an effect would make it.
   const [welcomeSeen] = useState(() => loadSettings().welcomeSeen);
   const [language, setLanguage] = useState<Language>(() => loadSettings().language);
+  const [batch, setBatch] = useState<Batch | null>(currentBatch);
+  useEffect(() => subscribeBatch(setBatch), []);
 
   useFocusEffect(
     useCallback(() => {
@@ -88,9 +104,115 @@ export default function Home() {
     }
   }
 
+  /** Pro first, then a queue that is free, then the picker. */
+  function proOnly(title: string, body: string, from: string): boolean {
+    if (isPro(loadProStatus())) return true;
+    Alert.alert(title, body, [
+      { text: 'Not now', style: 'cancel' },
+      { text: 'See Pro', onPress: () => router.push({ pathname: '/unlock', params: { from } }) },
+    ]);
+    return false;
+  }
+
+  /**
+   * Many clips at once. The picker's own limit is set to the batch's, and a
+   * batch still working is finished or cleared first: one queue, not a queue of
+   * queues.
+   */
+  async function pickBatch() {
+    if (!proOnly(batchCopy.proTitle, batchCopy.proBody, 'batch')) return;
+    if (batch && !summarize(batch).finished) {
+      Alert.alert(batchCopy.busyTitle, batchCopy.busyBody, [
+        { text: 'OK', style: 'cancel' },
+        { text: batchCopy.viewQueue, onPress: () => router.push('/batch') },
+      ]);
+      return;
+    }
+
+    setPicking(true);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['videos'],
+        allowsMultipleSelection: true,
+        selectionLimit: MAX_BATCH_CLIPS,
+        quality: 1,
+      });
+      if (result.canceled || result.assets.length === 0) {
+        setPicking(false);
+        return;
+      }
+      setDraft({
+        jobs: result.assets.map((asset, index) => ({
+          name: pickedClipName(asset.fileName, index, new Date()),
+          durationMs: Math.round(asset.duration ?? 0),
+          source: { kind: 'file' as const, uri: asset.uri, durationMs: Math.round(asset.duration ?? 0) },
+        })),
+      });
+      router.push('/batch/new');
+    } catch (error) {
+      setPicking(false);
+      Alert.alert('Those videos could not be opened', describe(error));
+    }
+  }
+
+  /**
+   * One long video, read to find the clips worth posting. Anything under five
+   * minutes is a clip already; anything over the cap is read up to the cap.
+   */
+  async function pickLong() {
+    if (!proOnly(autoclip.proTitle, autoclip.proBody, 'autoclip')) return;
+    if (!ensureLanguageReady(language, 'language')) return;
+
+    setPicking(true);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['videos'],
+        allowsMultipleSelection: false,
+        quality: 1,
+      });
+      if (result.canceled) {
+        setPicking(false);
+        return;
+      }
+      const asset = result.assets[0];
+      const durationMs = Math.round(asset.duration ?? 0);
+      const capMs = autoClipCapMs(language);
+
+      if (durationMs > 0 && durationMs < AUTO_CLIP_MIN_MS) {
+        setPicking(false);
+        Alert.alert(autoclip.tooShortTitle, autoclip.tooShortBody);
+        return;
+      }
+
+      const go = async () => {
+        await requestNotifications();
+        const project = beginProject(asset.uri, durationMs, language, {
+          purpose: 'autoclip',
+          sourceName: pickedClipName(asset.fileName, null, new Date()),
+          ...(durationMs > capMs ? { transcribeUntilMs: capMs } : {}),
+        });
+        void makeThumbnail(project);
+        router.push(`/processing/${project.id}`);
+      };
+
+      if (durationMs > capMs) {
+        const minutes = Math.round(capMs / 60_000);
+        Alert.alert(autoclip.tooLongTitle(minutes), autoclip.tooLongBody(minutes, Math.round(durationMs / 60_000)), [
+          { text: autoclip.cancel, style: 'cancel', onPress: () => setPicking(false) },
+          { text: autoclip.continue, onPress: () => void go() },
+        ]);
+        return;
+      }
+      await go();
+    } catch (error) {
+      setPicking(false);
+      Alert.alert('That video could not be opened', describe(error));
+    }
+  }
+
   function open(project: Project) {
     if (project.status === 'ready') {
-      router.push(`/project/${project.id}`);
+      router.push(project.purpose === 'autoclip' ? `/autoclip/${project.id}` : `/project/${project.id}`);
       return;
     }
     router.push(`/processing/${project.id}`);
@@ -162,6 +284,26 @@ export default function Home() {
                 accent={DEFAULT_ACCENT}
                 busy={picking}
               />
+              <View style={styles.more}>
+                <SecondaryAction title={batchCopy.home} note={batchCopy.homeNote} onPress={pickBatch} />
+                <SecondaryAction title={autoclip.home} note={autoclip.homeNote} onPress={pickLong} />
+              </View>
+              {batch && !summarize(batch).finished ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => router.push('/batch')}
+                  style={({ pressed }) => [styles.queueRow, { opacity: pressed ? 0.6 : 1 }]}
+                >
+                  <Label variant="label">
+                    {batch.paused
+                      ? batchCopy.homeRowPaused
+                      : batchCopy.homeRow(summarize(batch).done, summarize(batch).total)}
+                  </Label>
+                  <Label variant="label" tone="mute">
+                    ›
+                  </Label>
+                </Pressable>
+              ) : null}
               {/* Invariant 5 at its earliest point: what an export costs is on
                   screen before the picker opens, not after the work is done. */}
               <FreeTierLine
@@ -185,6 +327,36 @@ export default function Home() {
 
       {picking ? <Curtain title="Getting your video ready" note="A long clip takes a few seconds." /> : null}
     </Screen>
+  );
+}
+
+/** Auto clip is for long videos; under this, New video is the right door. */
+const AUTO_CLIP_MIN_MS = 5 * 60_000;
+
+/**
+ * How much of a long video auto clip reads. An hour in English, which the
+ * Stage 0 budget of 45 seconds per minute of audio puts at up to 45 minutes of
+ * phone time; half an hour in the other four, whose model is several times
+ * heavier and whose speed on the A54 is not measured yet. Longer, and the phone
+ * is busy for longer than anybody will leave it alone.
+ */
+function autoClipCapMs(language: Language): number {
+  return language === 'en' ? 60 * 60_000 : 30 * 60_000;
+}
+
+function SecondaryAction({ title, note, onPress }: { title: string; note: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${title}. ${note}.`}
+      onPress={onPress}
+      style={({ pressed }) => [styles.secondary, { opacity: pressed ? 0.7 : 1 }]}
+    >
+      <Label variant="heading">{title}</Label>
+      <Label variant="micro" tone="mute">
+        {note}
+      </Label>
+    </Pressable>
   );
 }
 
@@ -267,6 +439,27 @@ const styles = StyleSheet.create({
   header: { gap: space.md, marginBottom: space.lg },
   blurb: { maxWidth: 320 },
   action: { gap: space.sm, marginTop: space.lg },
+  more: { flexDirection: 'row', gap: space.sm },
+  secondary: {
+    flex: 1,
+    minHeight: MIN_TOUCH + 20,
+    justifyContent: 'center',
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.control,
+    borderWidth: 1,
+    borderColor: color.line,
+    gap: 2,
+  },
+  queueRow: {
+    minHeight: MIN_TOUCH,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: space.md,
+    borderRadius: radius.control,
+    backgroundColor: color.surface,
+  },
   listHead: { marginTop: space.xxl },
   row: {
     flexDirection: 'row',

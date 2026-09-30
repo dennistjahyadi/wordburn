@@ -367,11 +367,73 @@ properties rather than presets.
     Emphasis learned the languages too: per-language stopwords, and German's
     capital letters no longer read as names.
 
+17. Batch captions: up to 30 clips, one language, one look, one queue.
+    **Run end to end on an Android 16 emulator (6 GB, debug build); not on the
+    A54.** `src/batch/queue.ts` works through `batch.json` one clip after
+    another — transcribe, render, publish — holding the foreground service for
+    the whole batch so the stop between two clips cannot let the process go.
+    It pauses for storage (under 500 MB free) and waits out heat
+    (`PowerManager` thermal status severe) and says which on the Queue screen;
+    a batch interrupted by the app dying picks up where it stopped on the next
+    launch. `QueueHost` in the root layout is what hands the queue the caption
+    measurer, so the queue runs whatever screen is up. Looks can be saved by
+    name from Settings → Default style and picked for a batch.
+    On the emulator: two English clips through the real picker, Karaoke fill,
+    94 s, both in `Pictures/Wordburn/` with the fill caught mid-word on the
+    exported frame; and `scripts/test-batch.sh`, the instrumented test, two
+    copies of a 30 s clip in 173 s.
+    **Android's photo picker does not give a file's name** — it gives the
+    media id, `39.mp4` — so a batch named `<original>_captioned` came out
+    `39_captioned`. `pickedClipName` keeps a real name and replaces an id with
+    the day and the clip's place in the batch.
+
+18. Auto clip: suggested shorts from a long video.
+    **Run end to end on an Android 16 emulator; not on the A54.** A long video
+    (5 minutes or more; the first hour in English, the first half hour in the
+    downloaded languages) is transcribed as an ordinary project with
+    `purpose: 'autoclip'`, and opens on its suggestions instead of the editor.
+    `autoclip.ts` cuts the transcript at sentence ends and long pauses, joins
+    whole units into 20–60 s windows, scores them with `ClipScorer` — hook
+    phrase or question in the first three seconds, speech density, repeated
+    keywords, a clean ending, and a penalty for intro and outro — and takes the
+    ten best that do not overlap. The top five are preselected. Each can be
+    played (the preview loops the range), moved on a timeline or a word at a
+    time, stripped of dead air, removed, or joined by one the user sets.
+    A chosen clip is a batch job of kind `cut`: the burn-in module now takes
+    `segments` in the plan and renders only those stretches of the source,
+    laid end to end, audio copied rather than re-encoded; that cut becomes the
+    source video of a new, ordinary project whose words and envelope are the
+    long video's moved onto the cut's timeline; and that project is rendered
+    like any other. Two passes through the encoder, at the same settings.
+    On the emulator, a 7:09 English test episode written with four planted
+    moments: transcribed in 385 s, the four moments came back as the top four
+    (89, 86, 67, 55), the intro and outro did not. A 48 s suggestion with Remove
+    dead air came out 38.26 s, the longest silence left in it 340 ms, audio and
+    video within 21 ms of each other.
+    **Dead air could not be found from the word timings at all.** whisper's
+    timestamps stretch a sentence's last word across the pause after it
+    ("scratch." 9.9–10.7 s where the voice stopped at 10.1 s), so there is no
+    gap between words to cut. `quietStretches` reads the silence off the
+    envelope instead, and a word whose start drifted into a cut moves to where
+    the sound resumes rather than being dropped. **Neighbouring words share a
+    start time** (58 of 985 on the test episode), so the ‹ word › buttons step
+    by time, not by index.
+
 Every slice runs as a release build on the Galaxy A54 before it is called done.
 
 ## Known issues
 
 Eight are left, and none of them can be closed from this machine.
+
+- **Batch and auto clip have never run on a phone**, and the numbers above are
+  an M3 emulator's. What the A54 has to answer: a batch of thirty — whether the
+  queue survives thirty clips' worth of heat and the system's patience with a
+  foreground service, and whether it resumes cleanly after the app is swiped
+  away mid-clip; an hour of real podcast through auto clip — memory with 115 MB
+  of PCM in the JS heap, the time it takes, and whether the scorer's picks are
+  the ones a person would have picked, which text-to-speech with planted hooks
+  cannot say. Real speech has room tone, breaths and music under it, and
+  `quietDb` at −24 dB was chosen on silence that was truly silent.
 
 - **The four downloaded languages have never run on a phone.** The emulator
   proved the path — download, language, model, words, accents — and says
