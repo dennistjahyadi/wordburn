@@ -365,6 +365,13 @@ properties rather than presets.
     device**, Wordburn included — the model is read whole into RAM — so the
     download is not offered below 4.5 GiB of reported memory — a 6 GB phone
     reports 5.3–5.8 GiB, a 4 GB one about 3.6.
+    **874 MB in one request is a download that fails.** On the emulator it died
+    340 MB in and started over from nothing, so it comes in 64 MB ranges now,
+    each retried before it may fail the whole, kept across Try again, Stop and
+    the app being killed, joined, and checked against the published file's MD5.
+    Run to completion there: a restart resumed from the first range, and the
+    joined file's SHA-256 matched Hugging Face's. The MD5 line itself was added
+    after that run and has not executed on a device.
     Emphasis learned the languages too: per-language stopwords, and German's
     capital letters no longer read as names.
 
