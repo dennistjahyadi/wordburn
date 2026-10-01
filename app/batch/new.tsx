@@ -2,7 +2,7 @@
  * New batch: the clips just picked, one language, one look, and a button.
  *
  * Everything that could stop a batch halfway is asked here instead: the
- * language model, the gallery, the notification. A queue of thirty that fails on
+ * language model, the gallery, the notification. A queue of twenty that fails on
  * clip one for want of a permission is a batch the user has to babysit, which is
  * the one thing it exists to spare them.
  */
@@ -53,7 +53,7 @@ export default function NewBatch() {
     const settings = loadSettings();
     const current: Look = {
       key: 'current',
-      name: copy.currentLook,
+      name: `${copy.currentLook} · ${STYLE_PRESETS.find((preset) => preset.id === settings.styleId)?.name ?? ''}`,
       styleId: settings.styleId,
       styleOverrides: settings.styleOverrides,
     };
@@ -69,9 +69,10 @@ export default function NewBatch() {
     }));
     return { current, saved, presets };
   }, []);
-  const [lookKey, setLookKey] = useState(
-    () => looks.saved[looks.saved.length - 1]?.key ?? 'current'
-  );
+  // The default style, always: it is what the user said every video should
+  // start in, and a batch that quietly started in some other look would make
+  // them check every time.
+  const [lookKey, setLookKey] = useState('current');
   const all = [looks.current, ...looks.saved, ...looks.presets];
   const look = all.find((candidate) => candidate.key === lookKey) ?? looks.current;
 

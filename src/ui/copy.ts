@@ -27,7 +27,7 @@ export const pro = {
    */
   benefits: [
     'No watermark on any export',
-    'Batch captions: queue up to 30 clips, one style for all',
+    'Batch captions: queue up to 20 clips, one style for all',
     'Auto clip: suggested shorts from a long video',
     'Spanish, German, Dutch and Indonesian captions',
     'Unlimited dictionary words',
@@ -93,7 +93,7 @@ export const settings = {
 
 export const welcome = {
   headline: 'Captions that look edited.',
-  blurb: 'Caption one clip, or queue thirty and let your phone work through them.',
+  blurb: 'Caption one clip, or queue twenty and let your phone work through them.',
   start: 'Get started',
   restore: 'Already subscribed? Restore',
   nothingFound: 'No subscription or purchase found for this account.',
@@ -151,9 +151,9 @@ export const looks = {
 
 export const batch = {
   home: 'Batch',
-  homeNote: 'Up to 30 clips',
+  homeNote: 'Up to 20 clips',
   proTitle: 'Batch captions are part of Wordburn Pro',
-  proBody: 'Queue up to 30 clips, pick one language and one style, and let your phone work through them.',
+  proBody: 'Queue up to 20 clips, pick one language and one style, and let your phone work through them.',
   busyTitle: 'A batch is still running',
   busyBody: 'Let it finish, or clear it from the queue, before starting another.',
   viewQueue: 'View queue',
@@ -163,7 +163,7 @@ export const batch = {
   tooMany: (max: number) => `Only the first ${max} clips are queued.`,
   language: 'Spoken language',
   style: 'Style for every clip',
-  currentLook: 'Your current look',
+  currentLook: 'Your default style',
   savedLooks: 'Saved looks',
   presets: 'Presets',
   start: (count: number) => (count === 1 ? 'Caption 1 clip' : `Caption ${count} clips`),
@@ -236,4 +236,12 @@ export const autoclip = {
     outro: 'Near the outro',
   },
   processingTitle: 'Reading the whole video',
+};
+
+export const defaultStyle = {
+  title: 'Default style',
+  onboardingTitle: 'Pick your caption style',
+  continue: 'Continue',
+  note: 'Every new video, batch and auto clip starts in this style. The words above are a sample — changing this leaves the videos you have already captioned alone.',
+  onboardingNote: 'Every video, batch and auto clip will start in this style, so you set it once. Change it any time in Settings → Default style.',
 };

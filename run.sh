@@ -366,10 +366,10 @@ if [ "$SKIP_BUILD" = false ]; then
   ensure_native_project
 
   # Building only the target's own architecture keeps whisper.cpp compile times sane.
-  # The flag is inlined into the JS bundle by Metro at build time, so it has to
-  # be in the environment of the Gradle run that bundles, and nowhere else.
-  # Set to "0" rather than left unset otherwise, so a value in the shell that
-  # launched this cannot leak into an ordinary release build.
+  # Metro reads the switch when Gradle runs it to make the JS bundle, so it has
+  # to be in the environment of that Gradle run and nowhere else. Set to "0"
+  # rather than left unset otherwise, so a value in the shell that launched this
+  # cannot leak into an ordinary release build.
   if [ "$QA" = true ]; then
     step "Building a QA release APK for $ABI — $VERSION ($VERSION_CODE), developer tools in"
     QA_FLAG=1
@@ -378,7 +378,7 @@ if [ "$SKIP_BUILD" = false ]; then
     QA_FLAG=0
   fi
   clear_js_bundle
-  (cd android && EXPO_PUBLIC_WORDBURN_QA="$QA_FLAG" ./gradlew :app:assembleRelease -PreactNativeArchitectures="$ABI" --console=plain -q)
+  (cd android && WORDBURN_QA="$QA_FLAG" ./gradlew :app:assembleRelease -PreactNativeArchitectures="$ABI" --console=plain -q)
 
   if bundle_has_qa_tools "$RELEASE_APK" assets/index.android.bundle; then
     [ "$QA" = true ] || fail "This release APK has the developer tools in it and it should not. Nothing was installed."

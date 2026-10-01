@@ -5,7 +5,7 @@ version are cut from here (500 characters; see `PLAY-CONSOLE.md` §8).
 
 ## Unreleased — Wordburn Pro
 
-**Batch captions.** Pick up to 30 clips at once, choose one language and one
+**Batch captions.** Pick up to 20 clips at once, choose one language and one
 caption style, and Wordburn works through them in the background, one after
 another. A queue screen shows where every clip is, with retry for any that
 fail. Finished clips go to a Wordburn album in your gallery, named after the

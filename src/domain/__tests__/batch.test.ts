@@ -59,6 +59,8 @@ describe('file names', () => {
     expect(pickedClipName('39.mp4', 0, at)).toBe('2026-09-30 clip 01');
     expect(pickedClipName(undefined, 11, at)).toBe('2026-09-30 clip 12');
     expect(pickedClipName('39.mp4', null, at)).toBe('2026-09-30');
+    // What the A54's picker handed over on 2026-10-01.
+    expect(pickedClipName('bbe0eba4-7fe8-4dc4-8b4b-d2e1f3a4b5c6_1.mp4', 1, at)).toBe('2026-09-30 clip 02');
     expect(pickedClipName('3f9c2a1e-7b44-4c1d-9a55-0e2c1b7d8a90.mp4', 2, at)).toBe('2026-09-30 clip 03');
   });
 
@@ -98,7 +100,7 @@ describe('the queue', () => {
     expect(summarize(batch([job('a', { status: 'done' }), job('b', { status: 'failed' })])).finished).toBe(true);
   });
 
-  it('takes thirty clips', () => {
-    expect(MAX_BATCH_CLIPS).toBe(30);
+  it('takes twenty clips', () => {
+    expect(MAX_BATCH_CLIPS).toBe(20);
   });
 });

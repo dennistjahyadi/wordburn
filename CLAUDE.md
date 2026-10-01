@@ -375,7 +375,8 @@ properties rather than presets.
     Emphasis learned the languages too: per-language stopwords, and German's
     capital letters no longer read as names.
 
-17. Batch captions: up to 30 clips, one language, one look, one queue.
+17. Batch captions: up to 20 clips, one language, one look, one queue.
+    (Thirty until 2026-10-01; cut to twenty at Dennis's call.)
     **Run end to end on an Android 16 emulator (6 GB, debug build); not on the
     A54.** `src/batch/queue.ts` works through `batch.json` one clip after
     another — transcribe, render, publish — holding the foreground service for
@@ -434,8 +435,8 @@ Every slice runs as a release build on the Galaxy A54 before it is called done.
 Eight are left, and none of them can be closed from this machine.
 
 - **Batch and auto clip have never run on a phone**, and the numbers above are
-  an M3 emulator's. What the A54 has to answer: a batch of thirty — whether the
-  queue survives thirty clips' worth of heat and the system's patience with a
+  an M3 emulator's. What the A54 has to answer: a batch of twenty — whether the
+  queue survives twenty clips' worth of heat and the system's patience with a
   foreground service, and whether it resumes cleanly after the app is swiped
   away mid-clip; an hour of real podcast through auto clip — memory with 115 MB
   of PCM in the JS heap, the time it takes, and whether the scorer's picks are
@@ -1046,6 +1047,20 @@ has to argue with that gap.
   guarding with it reports "no mail app" on phones that have one. `openURL` inside
   a `try` is the check, and the fallback alert hands over the address itself: a
   dead button on the one screen asking for help is worse than no button.
+- **First launch asks for a style, once.** Welcome's Get started goes to
+  Settings → Default style in its onboarding form (`?onboarding=1`: Continue
+  instead of Back, Continue goes Home), because a look picked once is a look
+  nobody picks again clip after clip. Every new video starts in it, and a
+  batch — auto clip's cuts included — starts on it rather than on the last
+  saved look, so the default is the default everywhere.
+- **Processing moves while it works** (`src/ui/working.tsx`): a level meter
+  beside the stage, a bar that eases forward with a light crossing it, lines
+  that rise in with the newest word in the box highlight, and before the first
+  words the curtain's stepping highlight along "Listening for the first words".
+  All native-driver, because transcription is what keeps the JS thread busy —
+  on a cold emulator the screen sat on "Getting audio" for two minutes while
+  the project file already said transcribing, and the meter kept moving the
+  whole time. Reduced motion holds every piece still.
 - **Invariant 4 is about editing surfaces, and Export is not one.** The editor
   pauses its player when the screen loses focus. Every editing surface is a
   sheet over that screen and a sheet does not take the route's focus, so they
@@ -1573,11 +1588,15 @@ file's rule says must be a release build. Real purchases are still for a
 licence-tested account on the Internal testing track.
 
 **None of it can reach Play, and that is checked, not trusted.** The tools
-compile in only when `EXPO_PUBLIC_WORDBURN_QA=1` reaches Metro; otherwise
-they are dead code. `scripts/build-aab.sh` refuses to start with the flag set,
+are on only when Metro bundles `src/policy/build-flags.qa.ts` in place of
+`build-flags.ts`, which `metro.config.js` does when `WORDBURN_QA=1` — set by
+`./run.sh --qa` and by nothing else. It was an `EXPO_PUBLIC_` variable for one
+afternoon: in development Expo turns every `EXPO_PUBLIC_` read into an import
+that sweeps up each `.env*` file in the project, and `.env.signing.local`, which
+is prose, broke every debug build. `scripts/build-aab.sh` refuses to start with the flag set,
 deletes the cached JS bundle before every build, and opens the finished AAB to
-confirm the marker string `WORDBURN_QA_DEVELOPER_TOOLS_IN_THIS_BUNDLE` is not
-in it; `run.sh` makes the same check in both directions. Every one of those
+confirm the marker string `WORDBURN_QA_DEVELOPER_TOOLS_IN_THIS_BUNDLE`, which
+lives only in the QA flags file, is not in it; `run.sh` makes the same check in both directions. Every one of those
 exists because it failed once — see "Things Android taught us".
 
 ## Emphasis

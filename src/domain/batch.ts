@@ -56,8 +56,12 @@ export interface Batch {
   paused?: PauseReason;
 }
 
-/** The most a batch takes at once. Thirty is about an hour of short clips. */
-export const MAX_BATCH_CLIPS = 30;
+/**
+ * The most a batch takes at once. Twenty: about forty minutes of short clips,
+ * which a phone can work through in one sitting without the queue outlasting
+ * the battery or the user's patience with a hot phone in their pocket.
+ */
+export const MAX_BATCH_CLIPS = 20;
 
 const ACTIVE: readonly JobStatus[] = ['cutting', 'transcribing', 'rendering'];
 
@@ -125,7 +129,7 @@ export function summarize(batch: Batch): BatchSummary {
 /**
  * `<original>_captioned`, and `<original>_captioned 2` when that is taken.
  *
- * The original's name, because a batch of thirty named by timestamp is a batch
+ * The original's name, because a batch of twenty named by timestamp is a batch
  * nobody can match back to what they shot. Characters a gallery or a share
  * sheet chokes on are replaced, and a name that is nothing but those becomes
  * "clip". `taken` is every name already used in this batch; the gallery itself
@@ -154,7 +158,7 @@ export function captionedFileName(original: string, taken: ReadonlySet<string>):
  * said.
  *
  * Android's photo picker does not hand over a file's own name. It hands over
- * the media id — `39.mp4` — which is no name at all, and a batch of thirty of
+ * the media id — `39.mp4` — which is no name at all, and a batch of twenty of
  * those is a gallery nobody can match back to what they shot. So a name that is
  * only a number, or a long opaque id, becomes the day and the clip's place in
  * the batch; a real name is kept as it is.
@@ -165,7 +169,14 @@ export function pickedClipName(
   at: Date
 ): string {
   const stem = (fileName ?? '').replace(/\.[A-Za-z0-9]{1,5}$/, '').trim();
-  const opaque = stem === '' || /^\d+$/.test(stem) || /^[0-9a-f-]{20,}$/i.test(stem);
+  // A bare number (the photo picker's media id), a UUID anywhere at the start
+  // (Samsung's picker: "bbe0eba4-7fe8-4dc4-8b4b-…", sometimes with a suffix), or
+  // any long run of hex: none of them is a name a person gave a video.
+  const opaque =
+    stem === '' ||
+    /^\d+$/.test(stem) ||
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-/i.test(stem) ||
+    /^[0-9a-f-]{20,}$/i.test(stem);
   if (!opaque) return stem;
 
   const pad = (value: number) => String(value).padStart(2, '0');

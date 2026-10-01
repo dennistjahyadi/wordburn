@@ -26,9 +26,11 @@ export default function Welcome() {
   const [restoring, setRestoring] = useState(false);
   const [message, setMessage] = useState('');
 
+  // Into the style step rather than straight Home: a look picked once is a look
+  // nobody has to pick again on every clip.
   const start = useCallback(() => {
     markWelcomeSeen();
-    router.replace('/');
+    router.replace({ pathname: '/settings/style', params: { onboarding: '1' } });
   }, []);
 
   const restore = useCallback(async () => {

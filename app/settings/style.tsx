@@ -10,8 +10,13 @@
  * user's own words, because a picker with nothing to draw is four empty tiles.
  * The preview is the video's rectangle at 9:16 with no video behind it: the
  * shape this app is for, and the frame the export renders into.
+ *
+ * It is also the second step of first launch (`?onboarding=1`): pick a look
+ * once, and every video, every batch and every auto clip starts in it, so
+ * nobody restyles the same captions clip after clip. There it has Continue
+ * instead of Back, and Continue goes Home.
  */
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,11 +37,11 @@ import { SAMPLE_LOOP_MS, sampleProject } from '../../src/render/sample';
 import { useCaptionFonts } from '../../src/render/typefaces';
 import { Label, QuietButton, Screen } from '../../src/ui/atoms';
 import { useClock } from '../../src/ui/clock';
-import { looks } from '../../src/ui/copy';
+import { defaultStyle, looks } from '../../src/ui/copy';
 import { SaveLookSheet } from '../../src/ui/save-look';
 import { useReducedMotion } from '../../src/ui/motion';
 import { containRect, SafeZone } from '../../src/ui/stage';
-import { space } from '../../src/ui/theme';
+import { DEFAULT_ACCENT, space } from '../../src/ui/theme';
 
 /** Vertical video, which is the only shape this app is for. */
 const SAMPLE_ASPECT = 9 / 16;
@@ -62,6 +67,7 @@ const SAVE_DEBOUNCE_MS = 300;
 
 export default function DefaultStyle() {
   const insets = useSafeAreaInsets();
+  const onboarding = useLocalSearchParams<{ onboarding?: string }>().onboarding === '1';
   const [saving, setSaving] = useState(false);
 
   const [chosen, setChosen] = useState<{ styleId: string; styleOverrides: StyleOverrides }>(() => {
@@ -124,17 +130,32 @@ export default function DefaultStyle() {
   return (
     <Screen>
       <View style={[styles.bar, { paddingTop: insets.top + space.sm }]}>
-        <QuietButton
-          title="Back"
-          onPress={() => {
-            flush();
-            router.back();
-          }}
-        />
+        {onboarding ? (
+          <View style={styles.balance} />
+        ) : (
+          <QuietButton
+            title="Back"
+            onPress={() => {
+              flush();
+              router.back();
+            }}
+          />
+        )}
         <Label variant="label" tone="mute">
-          Default style
+          {onboarding ? defaultStyle.onboardingTitle : defaultStyle.title}
         </Label>
-        <QuietButton title={looks.save} onPress={() => setSaving(true)} />
+        {onboarding ? (
+          <QuietButton
+            title={defaultStyle.continue}
+            accent={DEFAULT_ACCENT}
+            onPress={() => {
+              flush();
+              router.replace('/');
+            }}
+          />
+        ) : (
+          <QuietButton title={looks.save} onPress={() => setSaving(true)} />
+        )}
       </View>
 
       <View style={[styles.stage, { height: stageHeight }]}>
@@ -171,8 +192,7 @@ export default function DefaultStyle() {
 
       <View style={[styles.foot, { paddingBottom: insets.bottom + space.md }]}>
         <Label variant="micro" tone="mute">
-          Every new video starts here. The words above are a sample — changing this leaves the
-          videos you have already captioned alone.
+          {onboarding ? defaultStyle.onboardingNote : defaultStyle.note}
         </Label>
       </View>
       {saving ? (

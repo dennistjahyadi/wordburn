@@ -24,6 +24,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Animated, BackHandler, Easing, StyleSheet, View } from 'react-native';
 
 import { Label } from './atoms';
+import { readableOn } from './color';
 import { useReducedMotion } from './motion';
 import { color, DEFAULT_ACCENT, ON_ACCENT, radius, space } from './theme';
 
@@ -34,8 +35,6 @@ const FADE_MS = 180;
 
 export function Curtain({ title, note }: { title: string; note?: string }) {
   const reducedMotion = useReducedMotion();
-  const words = useMemo(() => title.split(' '), [title]);
-  const step = useRef(new Animated.Value(0)).current;
   const fade = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -46,22 +45,10 @@ export function Curtain({ title, note }: { title: string; note?: string }) {
   useEffect(() => {
     if (reducedMotion) {
       fade.setValue(1);
-      step.setValue(0);
       return;
     }
-
     Animated.timing(fade, { toValue: 1, duration: FADE_MS, useNativeDriver: true }).start();
-    const loop = Animated.loop(
-      Animated.timing(step, {
-        toValue: words.length,
-        duration: words.length * STEP_MS,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [fade, reducedMotion, step, words.length]);
+  }, [fade, reducedMotion]);
 
   return (
     <Animated.View
@@ -70,11 +57,7 @@ export function Curtain({ title, note }: { title: string; note?: string }) {
       accessibilityLabel={title}
       accessibilityViewIsModal
     >
-      <View style={styles.line}>
-        {words.map((word, index) => (
-          <Word key={`${index}-${word}`} word={word} index={index} step={step} />
-        ))}
-      </View>
+      <SteppingLine text={title} variant="title" />
       {note ? (
         <Label variant="label" tone="mute" style={styles.note}>
           {note}
@@ -85,13 +68,70 @@ export function Curtain({ title, note }: { title: string; note?: string }) {
 }
 
 /**
+ * The signature on its own: a box highlight stepping word to word along a line,
+ * looping, on the native driver. The curtain says "Getting your video ready"
+ * with it, and Processing says "Listening for the first words". Under reduced
+ * motion the first word is highlighted and nothing moves.
+ */
+export function SteppingLine({
+  text,
+  variant,
+  accent = DEFAULT_ACCENT,
+}: {
+  text: string;
+  variant: 'title' | 'heading';
+  accent?: string;
+}) {
+  const reducedMotion = useReducedMotion();
+  const words = useMemo(() => text.split(' '), [text]);
+  const step = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (reducedMotion) {
+      step.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.timing(step, {
+        toValue: words.length,
+        duration: words.length * STEP_MS,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [reducedMotion, step, words.length]);
+
+  return (
+    <View style={styles.line}>
+      {words.map((word, index) => (
+        <Word key={`${index}-${word}`} word={word} index={index} step={step} variant={variant} accent={accent} />
+      ))}
+    </View>
+  );
+}
+
+/**
  * One word, and the highlight that lands on it for its turn.
  *
  * Two copies of the text on top of each other: the plain one always there, the
  * boxed one fading in for its step. Colour is not a native-driven property but
  * opacity is, so the highlighted word is a second layer rather than a recolour.
  */
-function Word({ word, index, step }: { word: string; index: number; step: Animated.Value }) {
+function Word({
+  word,
+  index,
+  step,
+  variant,
+  accent,
+}: {
+  word: string;
+  index: number;
+  step: Animated.Value;
+  variant: 'title' | 'heading';
+  accent: string;
+}) {
   const on = step.interpolate({
     inputRange: [index - 0.01, index, index + 0.99, index + 1],
     outputRange: [0, 1, 1, 0],
@@ -100,11 +140,11 @@ function Word({ word, index, step }: { word: string; index: number; step: Animat
 
   return (
     <View style={styles.word}>
-      <Label variant="title" style={styles.text}>
+      <Label variant={variant} style={styles.text}>
         {word}
       </Label>
-      <Animated.View style={[styles.box, { opacity: on }]}>
-        <Label variant="title" style={[styles.text, styles.onBox]}>
+      <Animated.View style={[styles.box, { opacity: on, backgroundColor: accent }]}>
+        <Label variant={variant} style={[styles.text, { color: readableOn(accent, ON_ACCENT, color.paper) }]}>
           {word}
         </Label>
       </Animated.View>
@@ -140,9 +180,7 @@ const styles = StyleSheet.create({
     left: space.xs,
     right: space.xs,
     bottom: 0,
-    backgroundColor: DEFAULT_ACCENT,
     borderRadius: radius.control,
   },
-  onBox: { color: ON_ACCENT },
   note: { textAlign: 'center' },
 });

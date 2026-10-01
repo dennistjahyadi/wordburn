@@ -28,13 +28,10 @@ fail() { printf '\n\033[1;31mx\033[0m %s\n' "$1" >&2; exit 1; }
 # with them in it would let anybody be Pro. Refuse rather than quietly unset: a
 # shell that has it exported is a shell somebody was QA-ing in, and they should
 # know it is still on.
-if [ "${EXPO_PUBLIC_WORDBURN_QA:-0}" != "0" ]; then
-  fail "EXPO_PUBLIC_WORDBURN_QA is set in this shell. A Play bundle must never carry the developer tools: unset it and run again."
+if [ "${WORDBURN_QA:-0}" != "0" ]; then
+  fail "WORDBURN_QA is set in this shell. A Play bundle must never carry the developer tools: unset it and run again."
 fi
-if grep -qs "^EXPO_PUBLIC_WORDBURN_QA=" .env .env.local .env.production .env.production.local 2>/dev/null; then
-  fail "EXPO_PUBLIC_WORDBURN_QA is set in an .env file. A Play bundle must never carry the developer tools."
-fi
-export EXPO_PUBLIC_WORDBURN_QA=0
+export WORDBURN_QA=0
 warn() { printf '\033[1;33m!\033[0m %s\n' "$1" >&2; }
 
 . scripts/version.sh

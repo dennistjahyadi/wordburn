@@ -4,7 +4,9 @@
  * The video is the hero and it plays with sound while the work happens, because
  * a minute of staring at a progress bar is a minute the user spends deciding
  * whether to leave. Underneath: one determinate bar driven by real audio
- * processed, one short status line, and the transcript arriving as it lands.
+ * processed, one short status line, and the transcript arriving as it lands —
+ * each of them animated (`src/ui/working.tsx`) so that the long stretch
+ * between two chunks never looks like a hang.
  */
 import { router, useLocalSearchParams } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -22,7 +24,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { accentColor, projectStyle, projectUnits, type Project } from '../../src/domain';
 import { cancelRun, currentRun, startRun, STAGE_LABEL, subscribe, type RunState } from '../../src/asr/runner';
 import { loadProject } from '../../src/project/store';
-import { Label, ProgressBar, QuietButton, Screen } from '../../src/ui/atoms';
+import { Label, QuietButton, Screen } from '../../src/ui/atoms';
+import { SteppingLine } from '../../src/ui/curtain';
+import { ArrivingLine, ListeningBars, LiveProgressBar } from '../../src/ui/working';
 import { color, radius, space } from '../../src/ui/theme';
 
 export default function Processing() {
@@ -86,6 +90,9 @@ export default function Processing() {
 
   const accent = accentColor(projectStyle(project));
   const stage = run?.stage ?? (project.status === 'failed' ? 'failed' : 'queued');
+  // Moving only while something is actually happening: a paused or failed run
+  // with a meter still bouncing would be lying about it.
+  const working = stage === 'queued' || stage === 'extracting' || stage === 'transcribing' || stage === 'aligning';
 
   return (
     <Screen>
@@ -94,11 +101,14 @@ export default function Processing() {
       </View>
 
       <View style={styles.status}>
-        <ProgressBar fraction={run?.fraction ?? 0} accent={accent} />
+        <LiveProgressBar fraction={run?.fraction ?? 0} accent={accent} active={working} />
         <View style={styles.statusRow}>
-          <Label variant="label" tone={stage === 'failed' ? 'signal' : 'mute'}>
-            {stage === 'failed' ? (run?.error ?? STAGE_LABEL.failed) : STAGE_LABEL[stage]}
-          </Label>
+          <View style={styles.stageLine}>
+            <ListeningBars accent={accent} active={working} />
+            <Label variant="label" tone={stage === 'failed' ? 'signal' : 'mute'}>
+              {stage === 'failed' ? (run?.error ?? STAGE_LABEL.failed) : STAGE_LABEL[stage]}
+            </Label>
+          </View>
           <Label variant="label" tone="mute">
             {Math.round((run?.fraction ?? 0) * 100)}%
           </Label>
@@ -110,7 +120,7 @@ export default function Processing() {
         ) : null}
       </View>
 
-      <Transcript project={project} settled={stage === 'ready'} />
+      <Transcript project={project} settled={stage === 'ready'} accent={accent} />
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>
         {stage === 'ready' ? (
@@ -169,11 +179,13 @@ function Preview({ project }: { project: Project }) {
 /**
  * Lines as they land.
  *
- * The tail is greyed while it is still being worked on, so the user can see the
- * difference between a line that is finished and one that is still arriving.
- * Nothing here is editable until the whole pass is done.
+ * Each line rises in as it arrives, and the newest is greyed with its last word
+ * in the box highlight, so the user can see the difference between a line that
+ * is finished and one that is still arriving. Before the first words, the
+ * highlight steps along a line of its own. Nothing here is editable until the
+ * whole pass is done.
  */
-function Transcript({ project, settled }: { project: Project; settled: boolean }) {
+function Transcript({ project, settled, accent }: { project: Project; settled: boolean; accent: string }) {
   const scroller = useRef<ScrollView>(null);
   const lines = useMemo(() => projectUnits(project), [project]);
 
@@ -184,9 +196,7 @@ function Transcript({ project, settled }: { project: Project; settled: boolean }
   if (lines.length === 0) {
     return (
       <View style={styles.transcriptEmpty}>
-        <Label variant="label" tone="mute">
-          The first words will appear here.
-        </Label>
+        <SteppingLine text="Listening for the first words" variant="heading" accent={accent} />
       </View>
     );
   }
@@ -194,13 +204,12 @@ function Transcript({ project, settled }: { project: Project; settled: boolean }
   return (
     <ScrollView ref={scroller} style={styles.transcript} contentContainerStyle={styles.transcriptBody}>
       {lines.map((line, index) => (
-        <Label
+        <ArrivingLine
           key={line.words[0].id}
-          variant="body"
-          tone={!settled && index === lines.length - 1 ? 'mute' : 'paper'}
-        >
-          {line.words.map((word) => word.text).join(' ')}
-        </Label>
+          text={line.words.map((word) => word.text).join(' ')}
+          latest={!settled && index === lines.length - 1}
+          accent={accent}
+        />
       ))}
     </ScrollView>
   );
@@ -225,9 +234,10 @@ const styles = StyleSheet.create({
   playHint: { paddingBottom: space.lg },
   status: { paddingHorizontal: space.lg, paddingTop: space.lg, gap: space.sm },
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  stageLine: { flexDirection: 'row', alignItems: 'center', gap: space.sm, flexShrink: 1 },
   transcript: { flex: 1, marginTop: space.lg },
   transcriptBody: { paddingHorizontal: space.lg, paddingBottom: space.lg, gap: space.sm },
-  transcriptEmpty: { flex: 1, paddingHorizontal: space.lg, paddingTop: space.xl },
+  transcriptEmpty: { flex: 1, paddingHorizontal: space.lg, paddingTop: space.xl, alignItems: 'center' },
   footer: {
     borderTopWidth: 1,
     borderTopColor: color.line,

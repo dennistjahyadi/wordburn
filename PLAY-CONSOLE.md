@@ -215,7 +215,7 @@ Wordburn puts captions on your short videos, one clip or a whole queue of them.
 Queue your clips, pick one style, and walk away. Wordburn works through the queue in the background and saves every captioned clip to your gallery. Or drop in a long podcast or stream and let auto clip suggest the short clips worth posting.
 
 BATCH CAPTIONS
-- Pick up to 30 clips from your gallery at once
+- Pick up to 20 clips from your gallery at once
 - Choose one language and one caption style for the whole batch
 - The queue keeps running while you use other apps, with progress for every clip
 - Finished clips land in a Wordburn album, named after the original
@@ -484,7 +484,7 @@ device and neither runs except while a transcription or an export is in
 progress.
 
 The same service keeps a batch the user started running from one clip to the
-next — up to 30 clips they picked, transcribed and captioned one after another
+next — up to 20 clips they picked, transcribed and captioned one after another
 — with a notification that says which clip it is on. It stops when the batch
 finishes, fails or is paused.
 ```
@@ -551,7 +551,7 @@ description was fixed for in section 1. Whatever ships here has to agree with
 ```
 Wordburn Pro is here.
 
-Batch captions: queue up to 30 clips, pick one language and one style, and let your phone work through them in the background.
+Batch captions: queue up to 20 clips, pick one language and one style, and let your phone work through them in the background.
 
 Auto clip: drop in a long video and get up to 10 suggested shorts, captioned. Trim them, cut dead air, and send them to the queue.
 

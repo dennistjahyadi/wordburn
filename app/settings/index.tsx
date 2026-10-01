@@ -82,7 +82,7 @@ export default function Settings() {
         />
         <Divider />
         <Row
-          title="Default style"
+          title="Default caption style"
           detail={styleName}
           onPress={() => router.push('/settings/style')}
         />

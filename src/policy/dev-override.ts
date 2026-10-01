@@ -9,35 +9,24 @@
  *
  * Three rules keep this from ever reaching a customer:
  *
- * - **It does not exist in a Play build.** `DEV_TOOLS` is `__DEV__`, or the
- *   `EXPO_PUBLIC_WORDBURN_QA` flag `./run.sh --qa` bakes into a release bundle;
- *   `scripts/build-aab.sh` refuses to build with that flag set. Metro inlines
- *   both, so in a Play build every branch below is dead code.
+ * - **It is off in a Play build.** `DEV_TOOLS` is `__DEV__`, or the flag in
+ *   `build-flags.ts`, which is false unless `./run.sh --qa` had Metro bundle
+ *   `build-flags.qa.ts` instead; `scripts/build-aab.sh` refuses to build with
+ *   that switch set and checks the finished bundle for the QA file's marker.
  * - **It never writes the purchase record.** The override lives in its own file
  *   and is laid over `entitlement.json` when it is read. Anything that saves the
  *   entitlement reads the stored one, so a pretend subscription cannot be
  *   exported into a real one.
  * - **It is never quiet.** Home says when an override is on.
  */
+import { QA_BUILD_FLAG } from './build-flags';
 import type { Entitlement } from './free-tier';
 import type { PlanId } from './pro';
 
-export const DEV_TOOLS: boolean = __DEV__ || process.env.EXPO_PUBLIC_WORDBURN_QA === '1';
+export const DEV_TOOLS: boolean = __DEV__ || QA_BUILD_FLAG;
 
 /** A release build with the developer tools in it. Labelled on Home, never uploaded. */
-export const QA_BUILD: boolean = !__DEV__ && process.env.EXPO_PUBLIC_WORDBURN_QA === '1';
-
-/**
- * A string that is in the JS bundle when, and only when, the developer tools
- * are. With the flag off the condition folds to false at build time and the
- * minifier drops the literal, so the build scripts can open the finished APK or
- * AAB and know rather than trust: `run.sh` and `build-aab.sh` both check.
- *
- * Why they have to: Gradle does not count an environment variable as an input,
- * so the first ordinary release after a `--qa` build reused the QA bundle and
- * shipped the Developer screen — caught on the A54 on 2026-10-01.
- */
-export const QA_MARKER: string = DEV_TOOLS && !__DEV__ ? 'WORDBURN_QA_DEVELOPER_TOOLS_IN_THIS_BUNDLE' : '';
+export const QA_BUILD: boolean = !__DEV__ && QA_BUILD_FLAG;
 
 export type ProOverride =
   /** No override: whatever Play last said. */
