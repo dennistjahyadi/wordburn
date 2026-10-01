@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { track } from '../src/analytics/events';
 import { loadProStatus, markSubscribed, syncEntitlement } from '../src/policy/entitlement-store';
 import {
+  formatLike,
   formatMicros,
   fractionDigitsOf,
   monthlyMicros,
@@ -254,7 +255,8 @@ function PlanCard({
 }) {
   const monthly =
     plan.id === 'yearly'
-      ? formatMicros(monthlyMicros(plan), plan.currency, undefined, fractionDigitsOf(plan.price))
+      ? (formatLike(plan.price, monthlyMicros(plan)) ??
+        formatMicros(monthlyMicros(plan), plan.currency, undefined, fractionDigitsOf(plan.price)))
       : null;
 
   return (

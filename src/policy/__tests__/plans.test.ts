@@ -1,4 +1,5 @@
 import {
+  formatLike,
   formatMicros,
   fractionDigitsOf,
   isoDays,
@@ -105,6 +106,24 @@ describe('what the yearly card says', () => {
 
   it('gives no figure rather than a wrong one for a currency it cannot format', () => {
     expect(formatMicros(1_000_000, 'NOT A CURRENCY')).toBeNull();
+  });
+});
+
+describe('a figure written the way Play writes money', () => {
+  it('copies the A54’s rupiah exactly, where Intl wrote "IDR 57,500"', () => {
+    expect(formatLike('Rp 690.000', 690_000_000_000 / 12)).toBe('Rp 57.500');
+  });
+
+  it('keeps symbols, decimals and separators in every shape Play uses', () => {
+    expect(formatLike('$39.99', 3_332_500)).toBe('$3.33');
+    expect(formatLike('39,99 €', 3_332_500)).toBe('3,33 €');
+    expect(formatLike('€1.234,56', 102_880_000)).toBe('€102,88');
+    expect(formatLike('¥4,000', 333_333_333)).toBe('¥333');
+    expect(formatLike('Rp 1.290.000', 1_290_000_000_000 / 12)).toBe('Rp 107.500');
+  });
+
+  it('gives no figure for a template with no number in it', () => {
+    expect(formatLike('Free', 1_000_000)).toBeNull();
   });
 });
 

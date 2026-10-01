@@ -175,6 +175,37 @@ export function formatMicros(
 }
 
 /**
+ * An amount written exactly the way Play wrote another one.
+ *
+ * `Intl` was the first answer and it was wrong on the phone that matters: on
+ * the A54, Play wrote the yearly plan "Rp 690.000" and `Intl` wrote its
+ * per-month figure "IDR 57,500" — the currency's code instead of its symbol,
+ * and the other separator — two prices on one card disagreeing about how money
+ * is written. So the template is Play's own string: its symbol, its spacing,
+ * its grouping and decimal marks are kept, and only the digits are replaced.
+ * Null when the template has no number in it to replace.
+ */
+export function formatLike(template: string, micros: number): string | null {
+  const match = /\d[\d.,\u00a0\u202f' ]*\d|\d/.exec(template);
+  if (!match) return null;
+  const number = match[0];
+
+  const decimals = fractionDigitsOf(template);
+  // The mark before the decimals, if any; every other separator is grouping.
+  const decimalMark = decimals > 0 ? number[number.length - decimals - 1] : null;
+  const groupMark = [...number.slice(0, decimalMark ? number.length - decimals - 1 : number.length)].find(
+    (char) => !/\d/.test(char)
+  );
+
+  const fixed = (micros / 1_000_000).toFixed(decimals);
+  const [whole, fraction] = fixed.split('.');
+  const grouped = groupMark ? whole.replace(/\B(?=(\d{3})+(?!\d))/g, groupMark) : whole;
+  const written = fraction && decimalMark ? `${grouped}${decimalMark}${fraction}` : grouped;
+
+  return template.slice(0, match.index) + written + template.slice(match.index + number.length);
+}
+
+/**
  * How many decimals Play wrote a price with: "$39.99" and "39,99 €" have two,
  * "Rp 649.000" and "¥4,000" have none. A separator followed by exactly one or
  * two digits at the end of the number is a decimal point; three is grouping.

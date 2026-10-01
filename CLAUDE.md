@@ -544,9 +544,15 @@ canvas beat the four the old grid drew in four.
   TikTok's own DM screen is the same half-proof Instagram got in slice 10 — a
   machine should stop at somebody's real account — and TikTok proper is still not
   installed on the A54.
-- **Nobody has ever subscribed.** Play Billing connects, and the product
-  query answers — with nothing, because `wordburn_pro` does not exist in any Play
-  Console yet. So `subscribe`, the purchase sheet, the trial, the pending state,
+- **Nobody has ever subscribed.** `wordburn_pro` exists in Play Console as of
+  2026-10-01, and on the A54 — release build, sideloaded over the 1.0.4 install
+  with the same signature — Play answered with all three base plans in rupiah:
+  Rp 90.000 a week, Rp 179.000 a month, Rp 690.000 a year. **It returned no
+  trial offer**, so the button read "Continue"; the `yearly-trial` offer is
+  either not active, not on `yearly`, or not offered to that account. The same
+  run caught the per-month figure written "IDR 57,500" beside Play's "Rp
+  690.000" — `Intl` on the phone — and `formatLike` now copies Play's own
+  string instead. So `subscribe`, the purchase sheet, the trial, the pending state,
   the acknowledgement, account hold, and a real restore on a second device are
   all unrun code. The states are unit tested against the shapes Play Billing
   documents; the phone has to answer whether expo-iap reports them that way,
