@@ -1559,9 +1559,26 @@ Nothing here is ever awaited on a path that leads to a caption: the launch check
 is fire and forget in the root layout, and everywhere else the user asked for it
 and is watching a spinner.
 
-A debug build shows sample plans at the placeholder prices when Play has nothing
-to sell it, which is always, so the paywall can be looked at. A release build
-never does.
+**Testing Pro needs no Play at all.** Debug builds, and release builds made
+with `./run.sh --qa`, carry Settings → Developer: be free, subscribed on any
+plan, cancelled but paid up, on hold, or the legacy lifetime unlock
+(`src/policy/dev-override.ts`). The override lives in `dev-override.json` and
+is laid over `entitlement.json` when it is read — every reader sees it, every
+writer starts from the stored record, so a pretend subscription can never be
+saved into a real one. When Play has no plans for the build, the paywall shows
+sample plans and buying one turns the override on, so the purchase flow can be
+walked end to end. Home carries a red banner while any of it is on.
+`./run.sh --qa` is the build for verifying Pro features on the A54, which this
+file's rule says must be a release build. Real purchases are still for a
+licence-tested account on the Internal testing track.
+
+**None of it can reach Play, and that is checked, not trusted.** The tools
+compile in only when `EXPO_PUBLIC_WORDBURN_QA=1` reaches Metro; otherwise
+they are dead code. `scripts/build-aab.sh` refuses to start with the flag set,
+deletes the cached JS bundle before every build, and opens the finished AAB to
+confirm the marker string `WORDBURN_QA_DEVELOPER_TOOLS_IN_THIS_BUNDLE` is not
+in it; `run.sh` makes the same check in both directions. Every one of those
+exists because it failed once — see "Things Android taught us".
 
 ## Emphasis
 
@@ -1737,6 +1754,18 @@ animates the user's own line with its real picks.
   that fails cannot take the script down with it. `bash -x` is what found it;
   nothing else said a word. None of this is Android-specific — any
   `set -euo pipefail` script piping a chatty command into `head` has it.
+
+- **Gradle does not count an environment variable as an input.** The JS
+  bundle is built from `EXPO_PUBLIC_*` values Metro inlines, but the task that
+  runs Metro is up to date as long as the JS files are. After a `--qa` build,
+  the next ordinary release reused the QA bundle — Developer screen, banner and
+  all — and nothing anywhere warned. Caught on the A54 by looking at Home. The
+  release scripts now delete `android/app/build/generated/assets/react` before
+  building and grep the finished artifact for a marker that only a QA bundle
+  contains. The grep was `grep -q` the first time, which under `pipefail` is
+  the `head -1` trap above in a new coat: it quit at the first match, `unzip`
+  died of SIGPIPE, and a QA build that did contain the marker was reported as
+  not having it. It counts now.
 
 ## Conventions
 

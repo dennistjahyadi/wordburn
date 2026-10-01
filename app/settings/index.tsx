@@ -16,7 +16,8 @@ import { modelSizeLabel, type ModelState } from '../../src/asr/model-store';
 import { STYLE_PRESETS } from '../../src/domain';
 import { loadDictionary } from '../../src/project/dictionary-store';
 import { loadSettings } from '../../src/project/settings';
-import { loadProStatus, syncEntitlement } from '../../src/policy/entitlement-store';
+import { DEV_TOOLS, describeOverride } from '../../src/policy/dev-override';
+import { loadProOverride, loadProStatus, syncEntitlement } from '../../src/policy/entitlement-store';
 import { proStatus, type ProStatus } from '../../src/policy/pro';
 import { Divider, Label, QuietButton, Screen } from '../../src/ui/atoms';
 import { plural } from '../../src/ui/describe';
@@ -92,6 +93,17 @@ export default function Settings() {
         <Row title="Give feedback" detail="Email or TikTok" onPress={askHowToSendFeedback} />
         <Divider />
         <Row title="About" onPress={about} />
+        {/* Debug and QA builds only: dead code in anything uploaded to Play. */}
+        {DEV_TOOLS ? (
+          <>
+            <Divider />
+            <Row
+              title="Developer"
+              detail={describeOverride(loadProOverride())}
+              onPress={() => router.push('/settings/developer')}
+            />
+          </>
+        ) : null}
       </View>
 
       <View style={styles.foot}>

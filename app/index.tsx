@@ -24,8 +24,9 @@ import {
 import { beginProject } from '../src/asr/runner';
 import { setDraft } from '../src/batch/draft';
 import { currentBatch, subscribeBatch } from '../src/batch/queue';
+import { DEV_TOOLS, describeOverride, QA_BUILD } from '../src/policy/dev-override';
 import { isPro } from '../src/policy/pro';
-import { loadProStatus } from '../src/policy/entitlement-store';
+import { loadProOverride, loadProStatus } from '../src/policy/entitlement-store';
 import { autoclip, batch as batchCopy } from '../src/ui/copy';
 import { requestNotifications } from '../src/native/foreground-service';
 import { freeTierStatus } from '../src/policy/free-tier';
@@ -288,6 +289,21 @@ export default function Home() {
                 <SecondaryAction title={batchCopy.home} note={batchCopy.homeNote} onPress={pickBatch} />
                 <SecondaryAction title={autoclip.home} note={autoclip.homeNote} onPress={pickLong} />
               </View>
+              {/* Never quiet: a developer who forgot an override would be testing
+                  a customer who does not exist. */}
+              {DEV_TOOLS && (QA_BUILD || loadProOverride().kind !== 'play') ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => router.push('/settings/developer')}
+                  style={({ pressed }) => [styles.devRow, { opacity: pressed ? 0.6 : 1 }]}
+                >
+                  <Label variant="micro" style={{ color: color.signal }}>
+                    {[QA_BUILD ? 'QA build' : null, loadProOverride().kind !== 'play' ? `Pro override: ${describeOverride(loadProOverride())}` : null]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </Label>
+                </Pressable>
+              ) : null}
               {batch && !summarize(batch).finished ? (
                 <Pressable
                   accessibilityRole="button"
@@ -450,6 +466,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: color.line,
     gap: 2,
+  },
+  devRow: {
+    minHeight: MIN_TOUCH,
+    justifyContent: 'center',
+    paddingHorizontal: space.md,
+    borderRadius: radius.control,
+    borderWidth: 1,
+    borderColor: color.signal,
   },
   queueRow: {
     minHeight: MIN_TOUCH,

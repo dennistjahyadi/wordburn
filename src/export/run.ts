@@ -15,7 +15,7 @@ import { track } from '../analytics/events';
 import BurnIn, { type SavedFile, type VideoInfo } from '../../modules/burn-in';
 import * as ForegroundService from '../native/foreground-service';
 import { projectStyle, projectUnits, toSrt, type MeasureText, type Ms, type Project } from '../domain';
-import { loadEntitlement, saveEntitlement } from '../policy/entitlement-store';
+import { loadEntitlement, loadStoredEntitlement, saveEntitlement } from '../policy/entitlement-store';
 import { freeTierStatus, recordExport } from '../policy/free-tier';
 import { recordExportMade } from '../project/settings';
 import { projectDirectory } from '../project/store';
@@ -197,7 +197,7 @@ export async function runExport(request: ExportRequest): Promise<ExportOutcome> 
     // for a different reason — `recordExport` leaves an unlocked user alone,
     // because that number is about what is owed, and the feedback card needs to
     // know how much the app has been used by somebody who owes nothing.
-    saveEntitlement(recordExport(loadEntitlement()));
+    saveEntitlement(recordExport(loadStoredEntitlement()));
     recordExportMade();
     track({ name: 'export_done', kind: request.kind ?? 'single' });
 

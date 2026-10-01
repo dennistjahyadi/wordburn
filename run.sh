@@ -45,6 +45,10 @@ Options:
   --fresh         wipe app data first: projects, settings and what has been paid for
   --skip-build    install the APK that is already built
   --logs          after a release run, tail the pipeline log
+  --qa            release build with the developer tools in it: Settings →
+                  Developer can make it any customer, free or Pro, with no
+                  Google Play. For testing Pro on the A54 before an upload.
+                  Labelled "QA build" on Home. aab.sh refuses to build with it.
   -h, --help      this
 
 Emulator timings are never reportable. Use a phone for numbers.
@@ -59,6 +63,7 @@ COLD=false
 FRESH=false
 SKIP_BUILD=false
 TAIL_LOGS=false
+QA=false
 AVD=""
 
 while [ $# -gt 0 ]; do
@@ -70,6 +75,7 @@ while [ $# -gt 0 ]; do
     --fresh) FRESH=true ;;
     --skip-build) SKIP_BUILD=true ;;
     --logs) TAIL_LOGS=true ;;
+    --qa) QA=true; DEV=false ;;
     -h|--help) usage; exit 0 ;;
     -*) echo "unknown option: $1 (try --help)" >&2; exit 2 ;;
     *)
@@ -335,14 +341,50 @@ if [ "$DEV" = true ]; then
   exit $?
 fi
 
+# The JS bundle is cached by Gradle, and Gradle does not count an environment
+# variable as an input: after a --qa build, the next ordinary release reused
+# the QA bundle, Developer screen and all. Deleting it makes Metro run again.
+clear_js_bundle() {
+  rm -rf android/app/build/generated/assets/react android/app/build/intermediates/assets/*/merge*Assets/index.android.bundle
+}
+
+# Opens the finished artifact and checks the developer tools are in it exactly
+# when they should be. Knowing beats trusting the cache.
+QA_MARKER_STRING="WORDBURN_QA_DEVELOPER_TOOLS_IN_THIS_BUNDLE"
+# A count, not `grep -q`: -q leaves at the first match, unzip dies of SIGPIPE,
+# and under pipefail that reads as "not found" — the trap in CLAUDE.md's notes on
+# `head -1`, which this check fell straight into on its first run.
+bundle_has_qa_tools() { # <apk-or-aab> <path of the JS bundle inside it>
+  local found
+  found="$(unzip -p "$1" "$2" 2>/dev/null | LC_ALL=C grep -a -c "$QA_MARKER_STRING" || true)"
+  [ "${found:-0}" -gt 0 ]
+}
+
 # ------------------------------------------------------------- release build
 
 if [ "$SKIP_BUILD" = false ]; then
   ensure_native_project
 
   # Building only the target's own architecture keeps whisper.cpp compile times sane.
-  step "Building the release APK for $ABI — $VERSION ($VERSION_CODE)"
-  (cd android && ./gradlew :app:assembleRelease -PreactNativeArchitectures="$ABI" --console=plain -q)
+  # The flag is inlined into the JS bundle by Metro at build time, so it has to
+  # be in the environment of the Gradle run that bundles, and nowhere else.
+  # Set to "0" rather than left unset otherwise, so a value in the shell that
+  # launched this cannot leak into an ordinary release build.
+  if [ "$QA" = true ]; then
+    step "Building a QA release APK for $ABI — $VERSION ($VERSION_CODE), developer tools in"
+    QA_FLAG=1
+  else
+    step "Building the release APK for $ABI — $VERSION ($VERSION_CODE)"
+    QA_FLAG=0
+  fi
+  clear_js_bundle
+  (cd android && EXPO_PUBLIC_WORDBURN_QA="$QA_FLAG" ./gradlew :app:assembleRelease -PreactNativeArchitectures="$ABI" --console=plain -q)
+
+  if bundle_has_qa_tools "$RELEASE_APK" assets/index.android.bundle; then
+    [ "$QA" = true ] || fail "This release APK has the developer tools in it and it should not. Nothing was installed."
+  else
+    [ "$QA" = false ] || fail "The QA build came out without its developer tools. Nothing was installed."
+  fi
 
   # Read the version out of the APK rather than off app.json. A generated
   # android/ that had gone stale once shipped a bundle saying 0.0.1 under a

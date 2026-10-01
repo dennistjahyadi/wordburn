@@ -17,11 +17,17 @@
  */
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { track } from '../src/analytics/events';
-import { loadProStatus, markSubscribed, syncEntitlement } from '../src/policy/entitlement-store';
+import { DEV_TOOLS } from '../src/policy/dev-override';
+import {
+  loadProStatus,
+  markSubscribed,
+  saveProOverride,
+  syncEntitlement,
+} from '../src/policy/entitlement-store';
 import {
   formatLike,
   formatMicros,
@@ -76,9 +82,10 @@ export default function Unlock() {
       return;
     }
 
-    // A debug build talks to a Play that has never heard of it. The sample
-    // plans let the screen be looked at; a release build never sees them.
-    if (__DEV__) {
+    // A debug or QA build talks to a Play that has never heard of it. The
+    // sample plans let the screen be looked at and bought from — the purchase
+    // is simulated through the developer override. A Play build never sees them.
+    if (DEV_TOOLS) {
       setPlans(SAMPLE_PLANS);
       setPhase({ kind: 'ready' });
       return;
@@ -101,6 +108,17 @@ export default function Unlock() {
 
   const buy = useCallback(async () => {
     if (!plan) return;
+
+    // A sample plan has no offer token: there is nothing for Play to sell. The
+    // developer override stands in for the purchase, so everything after it —
+    // the Pro screen, the watermark gone, every door open — is the real path.
+    if (DEV_TOOLS && plan.offerToken === '') {
+      saveProOverride({ kind: 'subscribed', plan: plan.id });
+      setStatus(loadProStatus());
+      Alert.alert('Simulated purchase', 'No Google Play here: Pro is on through the developer override. Settings → Developer turns it off.');
+      return;
+    }
+
     setPhase({ kind: 'buying' });
     const outcome = await subscribe(plan);
 
@@ -404,9 +422,9 @@ function OnHold({ onLeave }: { onLeave: () => void }) {
 }
 
 /**
- * What a debug build shows when Play has nothing to sell it, which is always:
- * the product exists only in a Play Console the debug key is not signed into.
- * The numbers are the placeholders the plan was written with.
+ * What a debug or QA build shows when Play has nothing to sell it. The numbers
+ * are the placeholders the plan was written with, and the empty offer token is
+ * what tells `buy` to simulate rather than ask Play.
  */
 const SAMPLE_PLANS: Plan[] = [
   { id: 'weekly', offerToken: '', price: '$4.99', priceMicros: 4_990_000, currency: 'USD', period: 'week', trialDays: null },

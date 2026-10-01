@@ -23,6 +23,18 @@ GRADLE_PROPERTIES="$HOME/.gradle/gradle.properties"
 
 step() { printf '\n\033[1;36m==>\033[0m %s\n' "$1"; }
 fail() { printf '\n\033[1;31mx\033[0m %s\n' "$1" >&2; exit 1; }
+
+# The developer tools compile in only when this flag reaches Metro, and a bundle
+# with them in it would let anybody be Pro. Refuse rather than quietly unset: a
+# shell that has it exported is a shell somebody was QA-ing in, and they should
+# know it is still on.
+if [ "${EXPO_PUBLIC_WORDBURN_QA:-0}" != "0" ]; then
+  fail "EXPO_PUBLIC_WORDBURN_QA is set in this shell. A Play bundle must never carry the developer tools: unset it and run again."
+fi
+if grep -qs "^EXPO_PUBLIC_WORDBURN_QA=" .env .env.local .env.production .env.production.local 2>/dev/null; then
+  fail "EXPO_PUBLIC_WORDBURN_QA is set in an .env file. A Play bundle must never carry the developer tools."
+fi
+export EXPO_PUBLIC_WORDBURN_QA=0
 warn() { printf '\033[1;33m!\033[0m %s\n' "$1" >&2; }
 
 . scripts/version.sh
@@ -118,11 +130,39 @@ fi
 # the moment app.json moves and nothing in a Gradle build notices.
 version_sync_native
 
+
+# The JS bundle is cached by Gradle, and Gradle does not count an environment
+# variable as an input: after a --qa build, the next ordinary release reused
+# the QA bundle, Developer screen and all. Deleting it makes Metro run again.
+clear_js_bundle() {
+  rm -rf android/app/build/generated/assets/react android/app/build/intermediates/assets/*/merge*Assets/index.android.bundle
+}
+
+# Opens the finished artifact and checks the developer tools are in it exactly
+# when they should be. Knowing beats trusting the cache.
+QA_MARKER_STRING="WORDBURN_QA_DEVELOPER_TOOLS_IN_THIS_BUNDLE"
+# A count, not `grep -q`: -q leaves at the first match, unzip dies of SIGPIPE,
+# and under pipefail that reads as "not found" — the trap in CLAUDE.md's notes on
+# `head -1`, which this check fell straight into on its first run.
+bundle_has_qa_tools() { # <apk-or-aab> <path of the JS bundle inside it>
+  local found
+  found="$(unzip -p "$1" "$2" 2>/dev/null | LC_ALL=C grep -a -c "$QA_MARKER_STRING" || true)"
+  [ "${found:-0}" -gt 0 ]
+}
+clear_js_bundle
+
 step "Building the bundle — $VERSION ($VERSION_CODE)"
 echo "    Every architecture in app.json, not just this machine's. Play splits them."
 (cd android && ./gradlew :app:bundleRelease --console=plain)
 
 [ -f "$BUNDLE" ] || fail "Gradle finished but $BUNDLE is not there."
+
+# The last line of defence: a bundle for Play with the developer tools in it
+# would let anybody make themselves Pro.
+if bundle_has_qa_tools "$BUNDLE" base/assets/index.android.bundle; then
+  rm -f "$BUNDLE"
+  fail "The bundle has the developer tools in it. It has been deleted; run again from a fresh shell."
+fi
 
 # Read out of the bundle, not out of app.json. Saying the version back to
 # yourself proves nothing; this is the check that would have caught the 0.0.1.

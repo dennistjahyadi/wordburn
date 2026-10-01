@@ -9,13 +9,27 @@ import { File, Paths } from 'expo-file-system';
 
 import { NEW_ENTITLEMENT, type Entitlement } from './free-tier';
 import { applyStoreAnswer, proStatus, recordSubscribed, type PlanId, type ProStatus } from './pro';
+import { DEV_TOOLS, NO_OVERRIDE, withOverride, type ProOverride } from './dev-override';
 import { askStore } from './store';
 
 function entitlementFile(): File {
   return new File(Paths.document, 'entitlement.json');
 }
 
+/**
+ * What the app should treat as paid for: the stored record, with a developer
+ * override laid over it in debug and QA builds. Every reader uses this.
+ */
 export function loadEntitlement(): Entitlement {
+  const stored = loadStoredEntitlement();
+  return DEV_TOOLS ? withOverride(stored, loadProOverride()) : stored;
+}
+
+/**
+ * The record itself, untouched by any override. Every writer starts from this,
+ * so a pretend subscription can never be saved into a real one.
+ */
+export function loadStoredEntitlement(): Entitlement {
   const file = entitlementFile();
   if (!file.exists) {
     const fresh = { ...NEW_ENTITLEMENT, firstRunAt: new Date().toISOString() };
@@ -41,7 +55,7 @@ export function loadProStatus(now: Date = new Date()): ProStatus {
 
 /** Writes down a purchase that just completed, ahead of the next query. */
 export function markSubscribed(plan: PlanId | null): Entitlement {
-  const subscribed = recordSubscribed(loadEntitlement(), plan);
+  const subscribed = recordSubscribed(loadStoredEntitlement(), plan);
   saveEntitlement(subscribed);
   return subscribed;
 }
@@ -66,7 +80,34 @@ export async function syncEntitlement(): Promise<Entitlement | null> {
   const answer = await askStore();
   if (!answer) return null;
 
-  const next = applyStoreAnswer(loadEntitlement(), answer);
+  const next = applyStoreAnswer(loadStoredEntitlement(), answer);
   saveEntitlement(next);
-  return next;
+  return DEV_TOOLS ? withOverride(next, loadProOverride()) : next;
+}
+
+// ------------------------------------------------------------- developer override
+
+function overrideFile(): File {
+  return new File(Paths.document, 'dev-override.json');
+}
+
+/** The developer's override, in debug and QA builds; nothing anywhere else. */
+export function loadProOverride(): ProOverride {
+  if (!DEV_TOOLS) return NO_OVERRIDE;
+  try {
+    const file = overrideFile();
+    return file.exists ? (JSON.parse(file.textSync()) as ProOverride) : NO_OVERRIDE;
+  } catch {
+    return NO_OVERRIDE;
+  }
+}
+
+export function saveProOverride(override: ProOverride): void {
+  if (!DEV_TOOLS) return;
+  const file = overrideFile();
+  if (override.kind === 'play') {
+    if (file.exists) file.delete();
+    return;
+  }
+  file.write(JSON.stringify(override));
 }
