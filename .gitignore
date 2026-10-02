@@ -127,3 +127,8 @@ play-assets/
 marketing/creators/creators.csv
 marketing/creators/unlocks.csv
 marketing/creators/statements/
+
+# TikTok carousel 01's renders. `make-slides.py` rebuilds them from
+# `slides.json` and `stock/`, so they are build output like `remotion/out/`.
+marketing/tiktok-01-build-in-public/slides/
+marketing/tiktok-01-build-in-public/contact.jpg

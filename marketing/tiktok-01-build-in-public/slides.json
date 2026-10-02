@@ -1,0 +1,109 @@
+{
+  "handle": "@dennisleandros",
+  "slides": [
+    {
+      "kind": "hook",
+      "bg": "6424589.jpg",
+      "focus": 0.35,
+      "darken": 0.5,
+      "kicker": "build in public · wordburn",
+      "title": "13 days into my second app. here's the {honest} update.",
+      "body": "what works, what broke, the thing i got wrong, and what's next."
+    },
+    {
+      "kind": "text",
+      "bg": "15543114.jpg",
+      "focus": 0.3,
+      "darken": 0.7,
+      "kicker": "where i left off",
+      "title": "from kitverify to {wordburn}.",
+      "body": [
+        "i stopped trying to build something big.",
+        "i'm building one small tool i wanted myself: an app that puts captions on your videos, {right on your phone}. nothing gets uploaded. no sign-up."
+      ]
+    },
+    {
+      "kind": "product",
+      "kicker": "what it does today",
+      "title": "captions, made on your phone.",
+      "shot": "store/play-screenshots/01-editor.png",
+      "crop": [178, 393, 902, 1850],
+      "shot_height": 600,
+      "items": [
+        "your video never leaves your phone",
+        "no account, no sign-up",
+        "works with no internet",
+        "18 caption styles",
+        "pay once. no subscription"
+      ],
+      "note": "android. english only, for now."
+    },
+    {
+      "kind": "stats",
+      "bg": "5483075.jpg",
+      "focus": 0.6,
+      "darken": 0.72,
+      "kicker": "the numbers, honestly",
+      "title": "where it stands.",
+      "stats": [
+        ["13", "days of building"],
+        ["18", "caption styles"],
+        ["1", "phone it's been tested on. mine."],
+        ["0", "people using it yet"],
+        ["0", "sales"]
+      ],
+      "note": "that's honest, not sad. it isn't in the play store yet."
+    },
+    {
+      "kind": "text",
+      "bg": "34803969.jpg",
+      "focus": 0.5,
+      "darken": 0.7,
+      "kicker": "the bug of the week",
+      "title": "it worked. my computer {swore} it didn't.",
+      "body": [
+        "every time i built the app for my phone, the process said \"failed\". no reason. no message.",
+        "the app was actually done and sitting right there. a tiny helper step was quitting a split second early and calling that a failure.",
+        "one line to fix. finding it was the hard part."
+      ]
+    },
+    {
+      "kind": "text",
+      "bg": "8360007.jpg",
+      "focus": 0.35,
+      "darken": 0.7,
+      "kicker": "what i got wrong",
+      "title": "i was charging for the {wrong thing}.",
+      "body": [
+        "free users got 3 saves, then a paywall. but you don't need to save a video to check the captions: the preview is exactly what you'll get.",
+        "so the limit was punishing people for finishing.",
+        "now: save as many as you like, free, with a small mark in the corner. pay once and it's gone."
+      ]
+    },
+    {
+      "kind": "bullets",
+      "bg": "6424590.jpg",
+      "focus": 0.5,
+      "darken": 0.66,
+      "kicker": "what's next",
+      "title": "the parts that don't exist yet.",
+      "items": [
+        "getting it into the google play store. not there yet.",
+        "the first person to buy it. nobody has, because nobody can yet.",
+        "iphone. not started.",
+        "posting here as each one happens."
+      ]
+    },
+    {
+      "kind": "cta",
+      "bg": "7514824.jpg",
+      "focus": 0.45,
+      "darken": 0.7,
+      "kicker": "follow along",
+      "title": "the wins and the mess, {as they happen}.",
+      "body": [
+        "what do you wish your captions app did? tell me in the comments. i read every one."
+      ]
+    }
+  ]
+}
