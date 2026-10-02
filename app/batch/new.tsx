@@ -75,7 +75,7 @@ export default function NewBatch() {
 
   async function start() {
     if (clips.length === 0) return;
-    if (!ensureLanguageReady(language, 'batch')) return;
+    if (!ensureLanguageReady(language)) return;
 
     setStarting(true);
     try {
@@ -139,7 +139,6 @@ export default function NewBatch() {
           <LanguageField
             language={language}
             accent={DEFAULT_ACCENT}
-            from="batch"
             onChange={(next) => {
               setLanguage(next);
               rememberLanguage(next);

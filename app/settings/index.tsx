@@ -17,7 +17,8 @@ import { STYLE_PRESETS } from '../../src/domain';
 import { loadDictionary } from '../../src/project/dictionary-store';
 import { loadSettings } from '../../src/project/settings';
 import { DEV_TOOLS, describeOverride } from '../../src/policy/dev-override';
-import { loadProOverride, loadProStatus, syncEntitlement } from '../../src/policy/entitlement-store';
+import { loadEntitlement, loadProOverride, loadProStatus, syncEntitlement } from '../../src/policy/entitlement-store';
+import { freeTierStatus } from '../../src/policy/free-tier';
 import { proStatus, type ProStatus } from '../../src/policy/pro';
 import { Divider, Label, QuietButton, Screen } from '../../src/ui/atoms';
 import { plural } from '../../src/ui/describe';
@@ -131,7 +132,8 @@ function languageDetail(model: ModelState): string {
 function proDetail(status: ProStatus): string {
   switch (status.kind) {
     case 'free':
-      return copy.proDetail.free;
+      // The same line Home shows, so the count of free videos left is one fact.
+      return freeTierStatus(loadEntitlement()).line || copy.proDetail.free;
     case 'lifetime':
       return copy.proDetail.lifetime;
     case 'subscribed':

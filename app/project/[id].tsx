@@ -20,10 +20,12 @@ import { useVideoPlayer, VideoView, type VideoPlayer } from 'expo-video';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  BackHandler,
   Image,
   PanResponder,
   Pressable,
   ScrollView,
+  StatusBar,
   StyleSheet,
   useWindowDimensions,
   View,
@@ -381,11 +383,36 @@ function Workspace({ stored }: { stored: Project }) {
   const [shiftLine, setShiftLine] = useState<{ startMs: Ms; endMs: Ms } | null>(null);
   const [styling, setStyling] = useState(false);
 
+  /**
+   * The preview filling the phone, to watch the clip the way a viewer will.
+   *
+   * The same stage grown to the whole window rather than a second player: the
+   * video view stays mounted, so playback does not stutter on the way in or out,
+   * and the captions are the same layout at a bigger canvas (invariant 2). It is
+   * for watching, so no sheet opens over it, and Back leaves it before it leaves
+   * the editor.
+   */
+  const [fullscreen, setFullscreen] = useState(false);
+  // The window's height and the screen's are not the same number on every
+  // Android phone, so the full-screen canvas is sized from what the stage
+  // actually measured once it grew, the window being only the first guess.
+  const [fullHeight, setFullHeight] = useState(0);
+  useEffect(() => {
+    if (!fullscreen) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setFullscreen(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [fullscreen]);
+
   const shown = preview ?? project;
   const source = useMemo(() => createFrameSource(shown), [shown]);
   const timingWord = timingId ? (project.words.find((word) => word.id === timingId) ?? null) : null;
 
-  const stageHeight = Math.round(windowHeight * (styling ? STAGE_SHARE_STYLING : STAGE_SHARE));
+  const stageHeight = fullscreen
+    ? fullHeight || windowHeight
+    : Math.round(windowHeight * (styling ? STAGE_SHARE_STYLING : STAGE_SHARE));
   const stage = containRect(windowWidth, stageHeight, info.aspect);
   const toCheck = lowConfidenceCount(project);
   const toFix = useMemo(
@@ -707,8 +734,12 @@ function Workspace({ stored }: { stored: Project }) {
         accessibilityRole="button"
         accessibilityLabel={playing ? 'Pause' : 'Play'}
         onPress={() => (playing ? player.pause() : player.play())}
-        style={[styles.stage, { height: stageHeight }]}
+        onLayout={(event) => {
+          if (fullscreen) setFullHeight(Math.round(event.nativeEvent.layout.height));
+        }}
+        style={[styles.stage, fullscreen ? styles.stageFull : { height: stageHeight }]}
       >
+        {fullscreen ? <StatusBar hidden animated /> : null}
         <View style={{ width: stage.width, height: stage.height }}>
           <VideoView
             player={player}
@@ -743,6 +774,7 @@ function Workspace({ stored }: { stored: Project }) {
           clock={clock}
           durationMs={info.durationMs}
           accent={accent}
+          inset={fullscreen ? insets.bottom : 0}
           onSeek={(tMs) => {
             // Scrubbing by hand is the end of the loop: the user has said where
             // they want to be.
@@ -754,12 +786,27 @@ function Workspace({ stored }: { stored: Project }) {
           accessibilityRole="button"
           accessibilityLabel={playing ? 'Pause' : 'Play'}
           onPress={() => (playing ? player.pause() : player.play())}
-          style={styles.transport}
+          style={[styles.transport, fullscreen && { bottom: space.md + insets.bottom }]}
         >
           <View style={styles.transportDisc}>
             <Label variant="label">{playing ? '॥' : '▶'}</Label>
           </View>
         </Pressable>
+        {/* Opposite corner to the transport, so neither is reached for by
+            mistake. Hidden while a sheet is up: the stage is a preview for the
+            sheet then, and growing it would cover the thing being edited. */}
+        {fullscreen || !(timingWord || selected || shiftLine || styling) ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={fullscreen ? 'Exit full screen' : 'Full screen'}
+            onPress={() => setFullscreen((current) => !current)}
+            style={[styles.expand, fullscreen && { top: space.sm + insets.top }]}
+          >
+            <View style={styles.transportDisc}>
+              {fullscreen ? <Label variant="label">✕</Label> : <ExpandGlyph />}
+            </View>
+          </Pressable>
+        ) : null}
       </Pressable>
 
       <View style={styles.toolbarRow}>
@@ -888,7 +935,7 @@ function Workspace({ stored }: { stored: Project }) {
             />
           ) : null}
         </Sheet>
-      ) : (
+      ) : fullscreen ? null : (
         <CoachCard toCheck={toCheck} onShowMe={checkNext} />
       )}
     </Screen>
@@ -1018,6 +1065,22 @@ function CoachCard({ toCheck, onShowMe }: { toCheck: number; onShowMe: () => voi
   );
 }
 
+/**
+ * Four corners pointing out, drawn rather than typed: the caption faces carry no
+ * arrows, and a glyph left to the system's fallback font is a different shape on
+ * every phone.
+ */
+function ExpandGlyph() {
+  return (
+    <View style={styles.glyph}>
+      <View style={[styles.corner, { top: 0, left: 0, borderTopWidth: 2, borderLeftWidth: 2 }]} />
+      <View style={[styles.corner, { top: 0, right: 0, borderTopWidth: 2, borderRightWidth: 2 }]} />
+      <View style={[styles.corner, { bottom: 0, left: 0, borderBottomWidth: 2, borderLeftWidth: 2 }]} />
+      <View style={[styles.corner, { bottom: 0, right: 0, borderBottomWidth: 2, borderRightWidth: 2 }]} />
+    </View>
+  );
+}
+
 /** The playhead as a number, in the bar. Ten readings a second is plenty for text. */
 const Timecode = memo(function Timecode({ clock, durationMs }: { clock: Clock; durationMs: Ms }) {
   const [tMs, setTMs] = useState(0);
@@ -1051,11 +1114,14 @@ const Scrubber = memo(function Scrubber({
   clock,
   durationMs,
   accent,
+  inset = 0,
   onSeek,
 }: {
   clock: Clock;
   durationMs: Ms;
   accent: string;
+  /** Lifts the strip clear of the system's gesture bar when the stage is the whole screen. */
+  inset?: number;
   onSeek: (tMs: Ms) => void;
 }) {
   const [tMs, setTMs] = useState(0);
@@ -1115,7 +1181,7 @@ const Scrubber = memo(function Scrubber({
       onLayout={(event) => {
         width.current = event.nativeEvent.layout.width;
       }}
-      style={styles.scrubStrip}
+      style={[styles.scrubStrip, inset > 0 && { bottom: inset }]}
     >
       <View style={styles.track}>
         <View style={[styles.trackFill, { width: `${fraction * 100}%`, backgroundColor: accent }]} />
@@ -1385,6 +1451,19 @@ const styles = StyleSheet.create({
   barActions: { flexDirection: 'row', alignItems: 'center' },
   timecode: { fontVariant: ['tabular-nums'] },
   stage: { backgroundColor: '#000000', alignItems: 'center', justifyContent: 'center' },
+  /** Over everything else on the screen, which stays mounted and laid out underneath. */
+  stageFull: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, elevation: 10 },
+  glyph: { width: 14, height: 14 },
+  corner: { position: 'absolute', width: 5, height: 5, borderColor: color.paper },
+  expand: {
+    position: 'absolute',
+    right: space.sm,
+    top: space.sm,
+    width: MIN_TOUCH,
+    height: MIN_TOUCH,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   transport: {
     position: 'absolute',
     left: space.sm,

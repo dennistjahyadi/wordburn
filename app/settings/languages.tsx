@@ -12,11 +12,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   cancelModelDownload,
   deleteModel,
-  downloadModel,
   modelSizeLabel,
 } from '../../src/asr/model-store';
-import { loadProStatus } from '../../src/policy/entitlement-store';
-import { isPro } from '../../src/policy/pro';
 import { Divider, Label, PrimaryButton, ProgressBar, QuietButton, Screen } from '../../src/ui/atoms';
 import { languages as copy } from '../../src/ui/copy';
 import { ensureLanguageReady, useModelState } from '../../src/ui/language';
@@ -35,12 +32,9 @@ export default function Languages() {
   }
 
   function get() {
-    // The same gate as everywhere else: Pro first, then the size, then the bytes.
-    if (!isPro(loadProStatus())) {
-      ensureLanguageReady('es', 'settings');
-      return;
-    }
-    void downloadModel();
+    // The same checks as everywhere else: memory first, then the size, then the
+    // bytes. Asked as Spanish because any downloaded language means this file.
+    ensureLanguageReady('es');
   }
 
   return (

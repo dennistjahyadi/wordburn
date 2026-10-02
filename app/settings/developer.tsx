@@ -16,8 +16,10 @@ import { DEV_TOOLS, QA_BUILD, type ProOverride } from '../../src/policy/dev-over
 import {
   loadProOverride,
   loadStoredEntitlement,
+  saveEntitlement,
   saveProOverride,
 } from '../../src/policy/entitlement-store';
+import { FREE_CAPTIONS } from '../../src/policy/free-tier';
 import { proStatus, type ProStatus } from '../../src/policy/pro';
 import { loadSettings, saveSettings } from '../../src/project/settings';
 import { Divider, Label, QuietButton, Screen } from '../../src/ui/atoms';
@@ -25,7 +27,7 @@ import { color, DEFAULT_ACCENT, MIN_TOUCH, radius, space } from '../../src/ui/th
 
 const CHOICES: { label: string; note: string; override: ProOverride }[] = [
   { label: 'Google Play', note: 'No override: what Play last said', override: { kind: 'play' } },
-  { label: 'Free', note: 'Watermark, Pro doors closed', override: { kind: 'free' } },
+  { label: 'Free', note: 'Three free videos, watermark, Pro doors closed', override: { kind: 'free' } },
   { label: 'Subscribed · weekly', note: 'Pro, renewing', override: { kind: 'subscribed', plan: 'weekly' } },
   { label: 'Subscribed · monthly', note: 'Pro, renewing', override: { kind: 'subscribed', plan: 'monthly' } },
   { label: 'Subscribed · yearly', note: 'Pro, renewing', override: { kind: 'subscribed', plan: 'yearly' } },
@@ -38,6 +40,7 @@ export default function Developer() {
   const insets = useSafeAreaInsets();
   const [override, setOverride] = useState<ProOverride>(loadProOverride);
   const [welcomeAgain, setWelcomeAgain] = useState(false);
+  const [captionsUsed, setCaptionsUsed] = useState(() => loadStoredEntitlement().captionsUsed ?? 0);
 
   if (!DEV_TOOLS) return <Redirect href="/settings" />;
 
@@ -90,6 +93,23 @@ export default function Developer() {
               );
             })}
           </View>
+        </View>
+
+        <Divider />
+
+        <View style={styles.block}>
+          <Label variant="heading">Free videos</Label>
+          <Label variant="label" tone="mute">
+            {captionsUsed} of {FREE_CAPTIONS ?? '∞'} used
+          </Label>
+          <QuietButton
+            title="Reset to none used"
+            accent={DEFAULT_ACCENT}
+            onPress={() => {
+              saveEntitlement({ ...loadStoredEntitlement(), captionsUsed: 0 });
+              setCaptionsUsed(0);
+            }}
+          />
         </View>
 
         <Divider />

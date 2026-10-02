@@ -431,6 +431,24 @@ properties rather than presets.
     stretch a sentence's last word across the pause after it. It has to be read
     off the envelope. The code is in git history before this date.
 
+19. Three free videos, every language free, and a full-screen preview.
+    **Written and tested, run on nothing.** Typecheck and 583 unit tests pass.
+    `FREE_CAPTIONS` in `free-tier.ts` is 3: a free user may caption three videos,
+    counted in `entitlement.captionsUsed` when Home makes the project, and the
+    fourth pick asks for Pro before the picker opens (invariant 5). Retrying,
+    editing and re-exporting a counted video are free; deleting one gives
+    nothing back. Exports still carry the mark. Home's line reads "3 free videos
+    left · watermarked exports", then "Free videos used". Settings → Developer
+    resets the count.
+    The eight downloaded languages are no longer Pro: anybody may download the
+    874 MB model, and the paywall's languages line became "Caption as many
+    videos as you like". The editor's stage has a full-screen toggle in its top
+    right corner: the same stage and the same player grown over the screen, so
+    the captions are the one layout at a bigger canvas, and hardware Back leaves
+    it before it leaves the editor. **The Play Console subscription benefits
+    still say languages** until somebody edits them there; `PLAY-CONSOLE.md`
+    has the new text.
+
 Every slice runs as a release build on the Galaxy A54 before it is called done.
 
 ## Known issues

@@ -27,10 +27,10 @@ import { currentBatch, subscribeBatch } from '../src/batch/queue';
 import { DEV_TOOLS, describeOverride, QA_BUILD } from '../src/policy/dev-override';
 import { isPro } from '../src/policy/pro';
 import { loadProOverride, loadProStatus } from '../src/policy/entitlement-store';
-import { batch as batchCopy } from '../src/ui/copy';
+import { batch as batchCopy, freeVideos as tierCopy } from '../src/ui/copy';
 import { requestNotifications } from '../src/native/foreground-service';
-import { freeTierStatus } from '../src/policy/free-tier';
-import { loadEntitlement } from '../src/policy/entitlement-store';
+import { freeTierStatus, recordCaption } from '../src/policy/free-tier';
+import { loadEntitlement, loadStoredEntitlement, saveEntitlement } from '../src/policy/entitlement-store';
 import { deleteProject, listProjects, loadPipeline, thumbnailFile } from '../src/project/store';
 import { loadSettings, rememberLanguage } from '../src/project/settings';
 import { makeThumbnail } from '../src/project/thumbnail';
@@ -75,9 +75,17 @@ export default function Home() {
    * curtain covers all of it; only cancelling or an error lifts it here.
    */
   async function pickVideo() {
+    // Read fresh rather than off `status`: Pro may have landed since focus.
+    if (freeTierStatus(loadEntitlement()).captionBlocked) {
+      Alert.alert(tierCopy.title, tierCopy.body, [
+        { text: 'Not now', style: 'cancel' },
+        { text: 'See Pro', onPress: () => router.push({ pathname: '/unlock', params: { from: 'home' } }) },
+      ]);
+      return;
+    }
     // Before the picker, not after it: a Spanish clip picked while the model is
     // still downloading would sit in Processing with nothing to run on.
-    if (!ensureLanguageReady(language, 'language')) return;
+    if (!ensureLanguageReady(language)) return;
     setPicking(true);
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -97,6 +105,10 @@ export default function Home() {
       await requestNotifications();
 
       const project = beginProject(asset.uri, Math.round(asset.duration ?? 0), language);
+      // Counted once the project exists and not before: a cancelled picker or a
+      // file that would not open has cost nothing. Against the stored record,
+      // so a developer override is never written into it.
+      if (!isPro(loadProStatus())) saveEntitlement(recordCaption(loadStoredEntitlement()));
       void makeThumbnail(project);
       router.push(`/processing/${project.id}`);
     } catch (error) {
@@ -223,7 +235,6 @@ export default function Home() {
                 <LanguageField
                   language={language}
                   accent={DEFAULT_ACCENT}
-                  from="language"
                   framed={false}
                   onChange={(next) => {
                     setLanguage(next);

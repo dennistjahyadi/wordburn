@@ -134,7 +134,7 @@ describe('folding a store answer in', () => {
 
 describe('the free tier, read through Pro', () => {
   it('drops the watermark for a subscriber and for a lifetime owner', () => {
-    expect(freeTierStatus(live(), now)).toEqual({ line: '', blocked: false, watermark: false });
+    expect(freeTierStatus(live(), now)).toEqual({ line: '', blocked: false, captionBlocked: false, watermark: false });
     expect(freeTierStatus(fresh({ unlocked: true }), now).watermark).toBe(false);
   });
 

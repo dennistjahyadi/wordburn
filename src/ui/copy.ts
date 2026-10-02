@@ -37,12 +37,13 @@ export const pro = {
   /**
    * What Pro changes, and nothing it does not. The whole editor and all eighteen
    * styles are free, so neither is listed: a tick beside something the user
-   * already has is a claim their own app contradicts.
+   * already has is a claim their own app contradicts. Neither are the languages:
+   * all nine are free, inside the free tier's limit on videos.
    */
   benefits: [
+    'Caption as many videos as you like',
     'No watermark on any export',
     'Batch captions: queue up to 20 clips, one style for all',
-    `Captions in ${moreCount} more languages`,
     'Unlimited dictionary words',
   ],
   plan: {
@@ -97,7 +98,7 @@ export const pro = {
 export const settings = {
   pro: 'Wordburn Pro',
   proDetail: {
-    free: 'Free exports carry a small watermark',
+    free: 'Free',
     lifetime: 'Pro',
     subscribed: (plan: string) => `${plan} plan`,
     suspended: 'On hold: update payment',
@@ -120,7 +121,6 @@ export const languages = {
   /** The two groups in the list, and what the second one needs from where this person stands. */
   group: {
     builtIn: 'Built into the app',
-    pro: (size: string) => `With Wordburn Pro · one ${size} download for all ${moreCount}`,
     download: (size: string) => `One ${size} download for all ${moreCount}`,
     ready: 'Downloaded · ready to use',
   },
@@ -132,9 +132,6 @@ export const languages = {
    */
   mixedHint: 'Speaking English and another language in the same video? Pick the other language.',
   downloading: (percent: number) => `Downloading ${percent}%`,
-  proTitle: 'More languages are part of Wordburn Pro',
-  proBody: `Captions in ${moreNames} come with Pro, along with batch captions.`,
-  proCta: 'See Pro',
   notNow: 'Not now',
   // "Model" is the engineer's word and nobody else's. Every download message
   // says what the person gets — languages — and what it costs: size, once.
@@ -224,12 +221,17 @@ export const batch = {
   homeRowPaused: 'Batch paused',
 };
 
+/** What Home says when the free tier's videos are gone. */
+export const freeVideos = {
+  title: "You've used your free videos",
+  body: 'Wordburn Pro captions as many videos as you like, with no watermark. The videos you have already captioned stay here to edit and export.',
+};
+
 export const firstLanguage = {
   title: 'Your language',
   heading: 'What language do you speak in your videos?',
   note: 'Every new video and batch starts in it. You can change it for any clip on Home.',
   continue: 'Continue',
-  useEnglish: 'Use English for now',
 };
 
 export const defaultStyle = {

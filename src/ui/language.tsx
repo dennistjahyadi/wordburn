@@ -2,11 +2,11 @@
  * Choosing what a clip is spoken in.
  *
  * One chip, one sheet, one rule, used by Home and the batch setup:
- * English is always there; the others are Pro and need the downloaded model,
- * and the sheet is where both of those are said — before a video is picked,
- * never after the work has started (invariant 5, applied to a language).
+ * English is always there; the others need the downloaded model, and the sheet
+ * is where that is said — before a video is picked, never after the work has
+ * started (invariant 5, applied to a language). None of them is Pro: a free user
+ * gets every language, inside the free tier's limit on videos.
  */
-import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -22,8 +22,6 @@ import {
 } from '../asr/model-store';
 import { languageName, LANGUAGES, needsDownloadedModel, type Language } from '../domain';
 import { Sheet } from '../editor/Sheet';
-import { loadProStatus } from '../policy/entitlement-store';
-import { isPro } from '../policy/pro';
 import { Label } from './atoms';
 import { languages as copy } from './copy';
 import { color, MIN_TOUCH, radius, space } from './theme';
@@ -37,20 +35,12 @@ export function useModelState(): ModelState {
 
 /**
  * Whether a clip in this language can be started right now, saying why not when
- * it cannot. English always can. The others need Pro and then the model; a
- * missing model is offered for download on the spot, because the person asking
- * has just shown they want it.
+ * it cannot. English always can. The others need the model; a missing model is
+ * offered for download on the spot, because the person asking has just shown
+ * they want it.
  */
-export function ensureLanguageReady(language: Language, from: string): boolean {
+export function ensureLanguageReady(language: Language): boolean {
   if (!needsDownloadedModel(language)) return true;
-
-  if (!isPro(loadProStatus())) {
-    Alert.alert(copy.proTitle, copy.proBody, [
-      { text: copy.notNow, style: 'cancel' },
-      { text: copy.proCta, onPress: () => router.push({ pathname: '/unlock', params: { from } }) },
-    ]);
-    return false;
-  }
 
   const state = modelState();
   if (state.kind === 'ready') return true;
@@ -91,13 +81,11 @@ export function LanguageField({
   language,
   onChange,
   accent,
-  from,
   framed = true,
 }: {
   language: Language;
   onChange: (next: Language) => void;
   accent: string;
-  from: string;
   framed?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -146,12 +134,8 @@ export function LanguageField({
             // Chosen even when the model is not there yet: the download prompt
             // is about getting it, not about whether this was the right answer.
             if (next !== language) track({ name: 'language_selected', language: next });
-            if (needsDownloadedModel(next) && !isPro(loadProStatus())) {
-              ensureLanguageReady(next, from);
-              return;
-            }
             onChange(next);
-            ensureLanguageReady(next, from);
+            ensureLanguageReady(next);
           }}
         />
       ) : null}
@@ -195,9 +179,9 @@ function LanguageSheet({
  * which share one download. Rows used to carry "Built in", "Pro" and "Download"
  * one word each, which said what but never why, and the one fact that explains
  * all of them — eight languages, one download — was small print under the list.
- * Now that fact is the second group's heading, said for where this person
- * stands (free, subscribed, downloading, done), and a row only has to say
- * whether it is the one chosen.
+ * Now that fact is the second group's heading, said for where the download
+ * stands (not yet, downloading, done), and a row only has to say whether it is
+ * the one chosen.
  *
  * Home's sheet and first launch's language step both draw it, so the two can
  * never disagree about what a language costs.
@@ -211,16 +195,14 @@ export function LanguageOptions({
   accent: string;
   onPick: (language: Language) => void;
 }) {
-  const pro = isPro(loadProStatus());
   const model = useModelState();
   const size = modelSizeLabel();
 
   const builtIn = LANGUAGES.filter((language) => !needsDownloadedModel(language.code));
   const downloaded = LANGUAGES.filter((language) => needsDownloadedModel(language.code));
 
-  const moreHeading = !pro
-    ? copy.group.pro(size)
-    : model.kind === 'ready'
+  const moreHeading =
+    model.kind === 'ready'
       ? copy.group.ready
       : model.kind === 'downloading'
         ? copy.downloading(Math.floor(model.fraction * 100))
@@ -268,7 +250,7 @@ export function LanguageOptions({
 
       <Label
         variant="micro"
-        tone={model.kind === 'failed' && pro ? 'signal' : 'mute'}
+        tone={model.kind === 'failed' ? 'signal' : 'mute'}
         style={[styles.group, styles.groupGap]}
       >
         {moreHeading}

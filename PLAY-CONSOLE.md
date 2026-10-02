@@ -241,7 +241,7 @@ EXPORT
 Captions are burned in at full quality and saved to your gallery, with the audio copied across untouched. Export a .srt subtitle file too.
 
 WORDBURN PRO
-Single clips caption and export with a small watermark in the corner. Wordburn Pro removes it and adds batch captions, eight more languages, and an unlimited dictionary. Weekly, monthly or yearly, with a free trial on the yearly plan where offered. Cancel anytime in Google Play.
+Caption your first three videos free, in any of nine languages, exported with a small watermark in the corner. Wordburn Pro captions as many as you like, removes the watermark, and adds batch captions and an unlimited dictionary. Weekly, monthly or yearly, with a free trial on the yearly plan where offered. Cancel anytime in Google Play.
 
 Wordburn does not translate: captions are in the language that is spoken.
 ```
@@ -579,7 +579,7 @@ Monetise → Products → Subscriptions → Create subscription.
 |---|---|
 | Product ID | `wordburn_pro` — matches `PRO_PRODUCT_ID` in `src/policy/store.ts`, permanent once created |
 | Name | `Wordburn Pro` |
-| Benefits (shown by Play on the subscriptions page) | `No watermark` · `Batch captions` · `Captions in 8 more languages` |
+| Benefits (shown by Play on the subscriptions page) | `Unlimited videos` · `No watermark` · `Batch captions` |
 
 ### Three base plans
 

@@ -10,10 +10,8 @@
  *
  * The phone's own language is the first guess, when it is one of the nine.
  *
- * A free user who picks a Pro language hears it once, here, and is offered Pro
- * or English. Saving the language anyway would leave Home on a choice that asks
- * for money on every pick, which is a nag rather than a setting. A subscriber is
- * offered the download on the spot, and it runs while they pick a style.
+ * Every language is free. Anybody who picks one that needs the download is
+ * offered it on the spot, and it runs while they pick a style.
  */
 import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -23,8 +21,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { track } from '../src/analytics/events';
 import { canRunModel, downloadModel, modelSizeLabel, modelState, NOT_ENOUGH_MEMORY } from '../src/asr/model-store';
 import { languageFromLocale, needsDownloadedModel, type Language } from '../src/domain';
-import { loadProStatus } from '../src/policy/entitlement-store';
-import { isPro } from '../src/policy/pro';
 import { loadSettings, rememberLanguage } from '../src/project/settings';
 import { Label, PrimaryButton, Screen } from '../src/ui/atoms';
 import { firstLanguage, languages as copy } from '../src/ui/copy';
@@ -57,14 +53,6 @@ export default function FirstLanguage() {
   const next = useCallback(() => {
     if (!needsDownloadedModel(chosen)) {
       proceed(chosen);
-      return;
-    }
-
-    if (!isPro(loadProStatus())) {
-      Alert.alert(copy.proTitle, copy.proBody, [
-        { text: firstLanguage.useEnglish, style: 'cancel', onPress: () => proceed('en') },
-        { text: copy.proCta, onPress: () => router.push({ pathname: '/unlock', params: { from: 'onboarding' } }) },
-      ]);
       return;
     }
 
