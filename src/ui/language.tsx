@@ -1,14 +1,14 @@
 /**
  * Choosing what a clip is spoken in.
  *
- * One chip, one sheet, one rule, used by Home, the batch setup and auto clip:
- * English is always there; the other four are Pro and need the downloaded model,
+ * One chip, one sheet, one rule, used by Home and the batch setup:
+ * English is always there; the others are Pro and need the downloaded model,
  * and the sheet is where both of those are said — before a video is picked,
  * never after the work has started (invariant 5, applied to a language).
  */
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { track } from '../analytics/events';
 import {
@@ -73,19 +73,32 @@ export function ensureLanguageReady(language: Language, from: string): boolean {
 }
 
 /**
- * "Spoken in English ›", with the download's progress beside it while there is
- * one. Tapping opens the sheet.
+ * The spoken language as a labelled setting: "Spoken language" on the left,
+ * the value and a chevron on the right, the download's progress under the value
+ * while there is one. Tapping opens the sheet.
+ *
+ * It was a chip reading "Spoken in English ›" above the New video button, and on
+ * the phone that read as a caption or a status line rather than a control — no
+ * label said what it set, and nothing about it looked tappable except a glyph.
+ * A row with a label and a value is the pattern every settings screen has taught
+ * people to tap.
+ *
+ * `framed` draws its own border and plane, for a screen where it stands alone.
+ * Home sets it false and puts it inside the card it shares with New video, so
+ * the setting reads as belonging to the action under it.
  */
-export function LanguageChip({
+export function LanguageField({
   language,
   onChange,
   accent,
   from,
+  framed = true,
 }: {
   language: Language;
   onChange: (next: Language) => void;
   accent: string;
   from: string;
+  framed?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const model = useModelState();
@@ -101,17 +114,24 @@ export function LanguageChip({
     <>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${copy.chip(languageName(language))}. Change language.`}
+        accessibilityLabel={`${copy.fieldLabel}: ${languageName(language)}${status ? `, ${status}` : ''}. Change.`}
         onPress={() => setOpen(true)}
-        style={({ pressed }) => [styles.chip, { opacity: pressed ? 0.6 : 1 }]}
+        style={({ pressed }) => [styles.field, framed && styles.framed, { opacity: pressed ? 0.6 : 1 }]}
       >
-        <Label variant="label">{copy.chip(languageName(language))}</Label>
-        {status ? (
-          <Label variant="micro" style={{ color: model.kind === 'failed' ? color.signal : accent }}>
-            {status}
+        <Label variant="label" tone="mute" style={styles.fieldLabel}>
+          {copy.fieldLabel}
+        </Label>
+        <View style={styles.fieldValue}>
+          <Label variant="body" numberOfLines={1}>
+            {languageName(language)}
           </Label>
-        ) : null}
-        <Label variant="label" tone="mute">
+          {status ? (
+            <Label variant="micro" style={{ color: model.kind === 'failed' ? color.signal : accent }}>
+              {status}
+            </Label>
+          ) : null}
+        </View>
+        <Label variant="heading" tone="mute">
           ›
         </Label>
       </Pressable>
@@ -150,8 +170,9 @@ function LanguageSheet({
   onClose: () => void;
   onPick: (language: Language) => void;
 }) {
-  const pro = isPro(loadProStatus());
-  const model = useModelState();
+  // Nine rows and two headings can outgrow a short screen at a large font
+  // scale, so the list scrolls rather than pushing the title off the top.
+  const { height } = useWindowDimensions();
 
   return (
     <Sheet onClose={onClose}>
@@ -161,71 +182,128 @@ function LanguageSheet({
           {copy.sheetNote}
         </Label>
 
-        <View style={styles.options} accessibilityRole="radiogroup">
-          {LANGUAGES.map((language) => {
-            const active = language.code === selected;
-            // One word per row. What the four share is said once, under them.
-            const note = !needsDownloadedModel(language.code)
-              ? copy.builtIn
-              : !pro
-                ? copy.needsPro
-                : model.kind === 'ready'
-                  ? null
-                  : copy.needsDownload;
-
-            return (
-              <Pressable
-                key={language.code}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: active }}
-                onPress={() => onPick(language.code)}
-                style={({ pressed }) => [
-                  styles.option,
-                  { borderColor: active ? accent : color.line, opacity: pressed ? 0.7 : 1 },
-                ]}
-              >
-                <View style={styles.optionText}>
-                  <Label variant="body">{language.name}</Label>
-                  {language.native !== language.name ? (
-                    <Label variant="micro" tone="mute">
-                      {language.native}
-                    </Label>
-                  ) : null}
-                </View>
-                {note ? (
-                  <Label variant="micro" tone="mute">
-                    {note}
-                  </Label>
-                ) : null}
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {model.kind !== 'ready' ? (
-          <Label variant="micro" tone="mute">
-            {copy.sharedModel(modelSizeLabel())}
-          </Label>
-        ) : null}
+        <ScrollView style={{ maxHeight: height * 0.62 }}>
+          <LanguageOptions selected={selected} accent={accent} onPick={onPick} />
+        </ScrollView>
       </View>
     </Sheet>
   );
 }
 
+/**
+ * The languages in two groups: English, which is in the app, and the rest,
+ * which share one download. Rows used to carry "Built in", "Pro" and "Download"
+ * one word each, which said what but never why, and the one fact that explains
+ * all of them — eight languages, one download — was small print under the list.
+ * Now that fact is the second group's heading, said for where this person
+ * stands (free, subscribed, downloading, done), and a row only has to say
+ * whether it is the one chosen.
+ *
+ * Home's sheet and first launch's language step both draw it, so the two can
+ * never disagree about what a language costs.
+ */
+export function LanguageOptions({
+  selected,
+  accent,
+  onPick,
+}: {
+  selected: Language;
+  accent: string;
+  onPick: (language: Language) => void;
+}) {
+  const pro = isPro(loadProStatus());
+  const model = useModelState();
+  const size = modelSizeLabel();
+
+  const builtIn = LANGUAGES.filter((language) => !needsDownloadedModel(language.code));
+  const downloaded = LANGUAGES.filter((language) => needsDownloadedModel(language.code));
+
+  const moreHeading = !pro
+    ? copy.group.pro(size)
+    : model.kind === 'ready'
+      ? copy.group.ready
+      : model.kind === 'downloading'
+        ? copy.downloading(Math.floor(model.fraction * 100))
+        : model.kind === 'failed'
+          ? copy.failed
+          : copy.group.download(size);
+
+  const row = (language: (typeof LANGUAGES)[number]) => {
+    const active = language.code === selected;
+    return (
+      <Pressable
+        key={language.code}
+        accessibilityRole="radio"
+        accessibilityState={{ selected: active }}
+        accessibilityLabel={language.native !== language.name ? `${language.name}, ${language.native}` : language.name}
+        onPress={() => onPick(language.code)}
+        style={({ pressed }) => [
+          styles.option,
+          { borderColor: active ? accent : color.line, opacity: pressed ? 0.7 : 1 },
+        ]}
+      >
+        <View style={styles.optionText}>
+          <Label variant="body">{language.name}</Label>
+          {language.native !== language.name ? (
+            <Label variant="micro" tone="mute">
+              {language.native}
+            </Label>
+          ) : null}
+        </View>
+        {active ? (
+          <Label variant="body" style={{ color: accent }}>
+            ✓
+          </Label>
+        ) : null}
+      </Pressable>
+    );
+  };
+
+  return (
+    <View style={styles.options} accessibilityRole="radiogroup">
+      <Label variant="micro" tone="mute" style={styles.group}>
+        {copy.group.builtIn}
+      </Label>
+      {builtIn.map(row)}
+
+      <Label
+        variant="micro"
+        tone={model.kind === 'failed' && pro ? 'signal' : 'mute'}
+        style={[styles.group, styles.groupGap]}
+      >
+        {moreHeading}
+      </Label>
+      {downloaded.map(row)}
+
+      <Label variant="micro" tone="mute" style={styles.hint}>
+        {copy.mixedHint}
+      </Label>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  chip: {
-    minHeight: MIN_TOUCH,
+  field: {
+    minHeight: MIN_TOUCH + 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
-    alignSelf: 'flex-start',
-    paddingHorizontal: space.md,
-    borderRadius: radius.pill,
+    gap: space.md,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.sm,
+  },
+  framed: {
+    borderRadius: radius.control,
     borderWidth: 1,
     borderColor: color.line,
+    backgroundColor: color.surface,
   },
+  fieldLabel: { flexShrink: 0 },
+  fieldValue: { flex: 1, alignItems: 'flex-end', gap: 2 },
   sheet: { gap: space.sm, paddingBottom: space.md },
   options: { gap: space.sm, marginTop: space.sm },
+  group: { marginTop: space.xs },
+  groupGap: { marginTop: space.md },
+  hint: { marginTop: space.sm },
   option: {
     minHeight: MIN_TOUCH + 12,
     flexDirection: 'row',

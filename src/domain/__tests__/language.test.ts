@@ -2,7 +2,10 @@ import { word } from '../__fixtures__/project';
 import { EXCLUDED, scoreEmphasis } from '../emphasis';
 import type { FeatureSet } from '../features';
 import {
+  DOWNLOADED_LANGUAGES,
   isLanguage,
+  LANGUAGES,
+  languageFromLocale,
   languageName,
   needsDownloadedModel,
   OTHER_STOPWORDS,
@@ -18,15 +21,36 @@ describe('which language a clip is in', () => {
     expect(projectLanguage({ language: 'id' })).toBe('id');
   });
 
-  it('knows the five and nothing else', () => {
-    expect(['en', 'es', 'de', 'nl', 'id'].every(isLanguage)).toBe(true);
-    expect(isLanguage('fr')).toBe(false);
+  it('knows the nine and nothing else', () => {
+    expect(['en', 'es', 'de', 'nl', 'id', 'fr', 'it', 'pt', 'pl'].every(isLanguage)).toBe(true);
+    expect(isLanguage('ro')).toBe(false);
+    expect(isLanguage('ru')).toBe(false);
     expect(languageName('nl')).toBe('Dutch');
+    expect(languageName('pt')).toBe('Portuguese');
+  });
+
+  it('lists English first and the rest alphabetically', () => {
+    expect(LANGUAGES[0].code).toBe('en');
+    const rest = LANGUAGES.slice(1).map((language) => language.name);
+    expect(rest).toEqual([...rest].sort());
+  });
+
+  it('guesses a language from the phone’s locale, and only one it supports', () => {
+    expect(languageFromLocale('pt-BR')).toBe('pt');
+    expect(languageFromLocale('es_MX')).toBe('es');
+    expect(languageFromLocale('id-ID')).toBe('id');
+    expect(languageFromLocale('in-ID')).toBe('id');
+    expect(languageFromLocale('en-US')).toBe('en');
+    expect(languageFromLocale('ro-RO')).toBeNull();
+    expect(languageFromLocale('')).toBeNull();
+    expect(languageFromLocale(undefined)).toBeNull();
   });
 
   it('sends only English to the bundled model', () => {
     expect(needsDownloadedModel('en')).toBe(false);
-    expect(['es', 'de', 'nl', 'id'].every((code) => needsDownloadedModel(code as never))).toBe(true);
+    expect(DOWNLOADED_LANGUAGES.map((language) => language.code).sort()).toEqual(
+      ['de', 'es', 'fr', 'id', 'it', 'nl', 'pl', 'pt'],
+    );
   });
 });
 
@@ -37,6 +61,11 @@ describe('emphasis in other languages', () => {
     expect(isStopword('the', 'es')).toBe(false);
     expect(isStopword('yang', 'id')).toBe(true);
     expect(isStopword('het', 'nl')).toBe(true);
+    expect(isStopword("c'est", 'fr')).toBe(true);
+    expect(isStopword('della', 'it')).toBe(true);
+    expect(isStopword('você', 'pt')).toBe(true);
+    expect(isStopword('się', 'pl')).toBe(true);
+    expect(isStopword('della', 'pt')).toBe(false);
   });
 
   it('lists every stopword in the form normalizeForMatch leaves it: lowercase, no punctuation but apostrophes', () => {

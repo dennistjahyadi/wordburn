@@ -97,7 +97,7 @@ export default function Queue() {
 
 function JobRow({ job }: { job: BatchJob }) {
   const thumb = job.projectId ? thumbnailFile(job.projectId) : null;
-  const active = job.status === 'cutting' || job.status === 'transcribing' || job.status === 'rendering';
+  const active = job.status === 'transcribing' || job.status === 'rendering';
 
   return (
     <View style={styles.row}>

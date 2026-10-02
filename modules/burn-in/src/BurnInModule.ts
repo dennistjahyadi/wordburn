@@ -1,4 +1,4 @@
-import { NativeModule, requireNativeModule } from 'expo';
+import { NativeModule, requireOptionalNativeModule } from 'expo';
 
 import type { BurnProgress, BurnResult, SavedFile, VideoInfo } from './BurnIn.types';
 
@@ -28,4 +28,9 @@ declare class BurnInModule extends NativeModule<BurnInEvents> {
   saveToDownloads(path: string, displayName: string, mimeType: string): Promise<SavedFile>;
 }
 
-export default requireNativeModule<BurnInModule>('BurnIn');
+/**
+ * Null on iOS: the burn-in is Kotlin and there is no Swift one. Optional so
+ * that importing the export path does not throw there — `src/export/run.ts`
+ * is what turns the null into something a screen can say.
+ */
+export default requireOptionalNativeModule<BurnInModule>('BurnIn');

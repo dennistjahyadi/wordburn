@@ -1,5 +1,5 @@
 /**
- * The words the Pro, language, batch and auto clip screens say.
+ * The words the Pro, language and batch screens say.
  *
  * Kept in one file so they can be translated later, which the rest of the app's
  * copy is not yet — it predates the ask and still lives beside the screens that
@@ -11,6 +11,20 @@
  * app as a whole, "offline", or "pay once".
  */
 
+import { DOWNLOADED_LANGUAGES } from '../domain';
+
+/**
+ * The downloaded languages, said from the list rather than typed out: the copy
+ * named four languages by hand in six places, and adding a fifth would have
+ * left most of them saying four.
+ */
+const NUMBER_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+const moreCount = NUMBER_WORDS[DOWNLOADED_LANGUAGES.length] ?? String(DOWNLOADED_LANGUAGES.length);
+const moreNames = (() => {
+  const names = DOWNLOADED_LANGUAGES.map((language) => language.name);
+  return names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+})();
+
 export const LINKS = {
   privacy: 'https://dennistjahyadi.github.io/wordburn/',
   terms: 'https://dennistjahyadi.github.io/wordburn/terms.html',
@@ -19,7 +33,7 @@ export const LINKS = {
 export const pro = {
   name: 'Wordburn Pro',
   headline: 'Caption every clip, not just one.',
-  lede: 'Queue a batch, cut shorts out of a long video, and export them clean.',
+  lede: 'Queue a batch of clips and export them clean.',
   /**
    * What Pro changes, and nothing it does not. The whole editor and all eighteen
    * styles are free, so neither is listed: a tick beside something the user
@@ -28,8 +42,7 @@ export const pro = {
   benefits: [
     'No watermark on any export',
     'Batch captions: queue up to 20 clips, one style for all',
-    'Auto clip: suggested shorts from a long video',
-    'Spanish, German, Dutch and Indonesian captions',
+    `Captions in ${moreCount} more languages`,
     'Unlimited dictionary words',
   ],
   plan: {
@@ -69,6 +82,7 @@ export const pro = {
     manage: 'Manage subscription',
     home: 'Home',
     backToExport: 'Back to export',
+    continue: 'Continue',
     back: 'Back',
   },
   hold: {
@@ -100,41 +114,58 @@ export const welcome = {
 };
 
 export const languages = {
-  chip: (name: string) => `Spoken in ${name}`,
-  sheetTitle: 'What language is spoken?',
-  sheetNote: 'Captions come out in the language that is spoken. Wordburn does not translate.',
-  builtIn: 'Built in',
-  needsPro: 'Pro',
-  needsDownload: 'Download',
-  sharedModel: (size: string) => `Spanish, German, Dutch and Indonesian share one ${size} download.`,
+  fieldLabel: 'Spoken language',
+  sheetTitle: 'What language is spoken in this video?',
+  sheetNote: "Captions are written in the language that is spoken. Wordburn doesn't translate.",
+  /** The two groups in the list, and what the second one needs from where this person stands. */
+  group: {
+    builtIn: 'Built into the app',
+    pro: (size: string) => `With Wordburn Pro · one ${size} download for all ${moreCount}`,
+    download: (size: string) => `One ${size} download for all ${moreCount}`,
+    ready: 'Downloaded · ready to use',
+  },
+  /**
+   * English goes to the English-only model, which turns any other language into
+   * English-sounding nonsense; the downloaded one writes English words as
+   * English. So for a video that mixes the two, the other language is the
+   * right answer, and nobody would guess that.
+   */
+  mixedHint: 'Speaking English and another language in the same video? Pick the other language.',
   downloading: (percent: number) => `Downloading ${percent}%`,
   proTitle: 'More languages are part of Wordburn Pro',
-  proBody: 'Spanish, German, Dutch and Indonesian captions come with Pro, along with batch captions and auto clip.',
+  proBody: `Captions in ${moreNames} come with Pro, along with batch captions.`,
   proCta: 'See Pro',
   notNow: 'Not now',
-  downloadTitle: 'Download the language model?',
+  // "Model" is the engineer's word and nobody else's. Every download message
+  // says what the person gets — languages — and what it costs: size, once.
+  downloadTitle: `Download ${moreCount} more languages?`,
   downloadBody: (size: string) =>
-    `Spanish, German, Dutch and Indonesian share one speech model. It is ${size} and downloaded once. Use Wi-Fi if you can.`,
+    `To caption in ${moreNames}, Wordburn needs a one-time ${size} download. It covers all ${moreCount}. Use Wi-Fi if you can.`,
   download: 'Download',
-  stillDownloading: 'The language model is still downloading',
+  stillDownloading: 'Still downloading the languages',
   lowMemoryTitle: 'Not available on this phone',
   stillDownloadingBody: 'It will be ready in a few minutes. You can keep using Wordburn in English meanwhile.',
   failed: 'The download did not finish',
   retry: 'Try again',
   settingsTitle: 'Languages',
   settingsDetail: {
-    ready: (size: string) => `Model downloaded · ${size}`,
+    ready: (size: string) => `Downloaded · ${size}`,
     absent: 'English only',
     downloading: (percent: number) => `Downloading ${percent}%`,
   },
   manage: {
     title: 'Languages',
     english: 'English is built into the app.',
-    model: 'Spanish, German, Dutch and Indonesian',
-    modelNote: (size: string) => `One speech model, ${size}. Downloaded from Hugging Face; your videos never are.`,
-    remove: 'Remove the model',
-    removeTitle: 'Remove the language model?',
-    removeBody: 'Clips already captioned keep their words. You can download it again any time.',
+    model: moreNames,
+    // Where the file comes from (Hugging Face) is in the privacy policy, where
+    // somebody who wants it will look. What this row owes a reader is what the
+    // download is for, its size, and that their videos stay put.
+    modelNote: (size: string) =>
+      `These languages need a one-time ${size} download. Your videos stay on your phone.`,
+    remove: 'Remove download',
+    removeTitle: 'Remove these languages?',
+    removeBody: (size: string) =>
+      `This frees up ${size}. Videos you already captioned keep their captions. You can download the languages again any time.`,
     cancel: 'Stop download',
   },
 };
@@ -161,7 +192,6 @@ export const batch = {
   clips: (count: number) => (count === 1 ? '1 clip' : `${count} clips`),
   totalLength: (label: string) => `${label} of video`,
   tooMany: (max: number) => `Only the first ${max} clips are queued.`,
-  language: 'Spoken language',
   style: 'Style for every clip',
   currentLook: 'Your default style',
   savedLooks: 'Saved looks',
@@ -173,7 +203,6 @@ export const batch = {
   failedCount: (failed: number) => (failed === 1 ? '1 failed' : `${failed} failed`),
   status: {
     queued: 'Waiting',
-    cutting: 'Cutting',
     transcribing: 'Transcribing',
     rendering: 'Rendering',
     done: 'Saved to gallery',
@@ -195,53 +224,18 @@ export const batch = {
   homeRowPaused: 'Batch paused',
 };
 
-export const autoclip = {
-  home: 'Auto clip',
-  homeNote: 'Shorts from a long video',
-  proTitle: 'Auto clip is part of Wordburn Pro',
-  proBody: 'Drop in a podcast or a stream and get up to 10 suggested clips, captioned.',
-  tooLongTitle: (minutes: number) => `Auto clip reads the first ${minutes} minutes`,
-  tooLongBody: (minutes: number, total: number) =>
-    `This video is ${total} minutes long. Transcribing more than ${minutes} minutes on a phone takes too long to be worth waiting for, so Wordburn will use the first ${minutes}.`,
-  tooShortTitle: 'This video is short enough to caption as it is',
-  tooShortBody: 'Auto clip is for videos of five minutes or more. Use New video instead.',
+export const firstLanguage = {
+  title: 'Your language',
+  heading: 'What language do you speak in your videos?',
+  note: 'Every new video and batch starts in it. You can change it for any clip on Home.',
   continue: 'Continue',
-  cancel: 'Cancel',
-  resultsTitle: 'Suggested clips',
-  resultsNote: (count: number) =>
-    count === 0
-      ? 'No clip between 20 and 60 seconds stood out. Add your own below.'
-      : `The ${count} strongest moments, best first. Adjust, remove, or add your own.`,
-  score: (score: number) => `${score}`,
-  duration: (seconds: number) => `${seconds}s`,
-  deadAir: 'Remove dead air',
-  deadAirSaving: (before: number, after: number) => `${before}s → ${after}s`,
-  adjust: 'Adjust',
-  remove: 'Remove',
-  addOwn: 'Add your own clip',
-  start: 'Start',
-  end: 'End',
-  earlier: '‹ word',
-  later: 'word ›',
-  done: 'Done',
-  caption: (count: number) => (count === 1 ? 'Caption 1 clip' : `Caption ${count} clips`),
-  style: 'Style',
-  reasons: {
-    hook: 'Strong opening',
-    question: 'Opens with a question',
-    dense: 'Fast-paced',
-    repeats: 'Stays on topic',
-    complete: 'Ends cleanly',
-    intro: 'Near the intro',
-    outro: 'Near the outro',
-  },
-  processingTitle: 'Reading the whole video',
+  useEnglish: 'Use English for now',
 };
 
 export const defaultStyle = {
   title: 'Default style',
   onboardingTitle: 'Pick your caption style',
   continue: 'Continue',
-  note: 'Every new video, batch and auto clip starts in this style. The words above are a sample — changing this leaves the videos you have already captioned alone.',
-  onboardingNote: 'Every video, batch and auto clip will start in this style, so you set it once. Change it any time in Settings → Default style.',
+  note: 'Every new video and batch starts in this style. The words above are a sample — changing this leaves the videos you have already captioned alone.',
+  onboardingNote: 'Every video and batch will start in this style, so you set it once. Change it any time in Settings → Default style.',
 };

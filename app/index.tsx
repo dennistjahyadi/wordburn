@@ -27,7 +27,7 @@ import { currentBatch, subscribeBatch } from '../src/batch/queue';
 import { DEV_TOOLS, describeOverride, QA_BUILD } from '../src/policy/dev-override';
 import { isPro } from '../src/policy/pro';
 import { loadProOverride, loadProStatus } from '../src/policy/entitlement-store';
-import { autoclip, batch as batchCopy } from '../src/ui/copy';
+import { batch as batchCopy } from '../src/ui/copy';
 import { requestNotifications } from '../src/native/foreground-service';
 import { freeTierStatus } from '../src/policy/free-tier';
 import { loadEntitlement } from '../src/policy/entitlement-store';
@@ -37,7 +37,7 @@ import { makeThumbnail } from '../src/project/thumbnail';
 import { Label, PrimaryButton, Screen } from '../src/ui/atoms';
 import { Curtain } from '../src/ui/curtain';
 import { describeProject, plural } from '../src/ui/describe';
-import { ensureLanguageReady, LanguageChip } from '../src/ui/language';
+import { ensureLanguageReady, LanguageField } from '../src/ui/language';
 import { FreeTierLine } from '../src/ui/tier';
 import { color, DEFAULT_ACCENT, MIN_TOUCH, radius, space } from '../src/ui/theme';
 
@@ -156,64 +156,9 @@ export default function Home() {
     }
   }
 
-  /**
-   * One long video, read to find the clips worth posting. Anything under five
-   * minutes is a clip already; anything over the cap is read up to the cap.
-   */
-  async function pickLong() {
-    if (!proOnly(autoclip.proTitle, autoclip.proBody, 'autoclip')) return;
-    if (!ensureLanguageReady(language, 'language')) return;
-
-    setPicking(true);
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['videos'],
-        allowsMultipleSelection: false,
-        quality: 1,
-      });
-      if (result.canceled) {
-        setPicking(false);
-        return;
-      }
-      const asset = result.assets[0];
-      const durationMs = Math.round(asset.duration ?? 0);
-      const capMs = autoClipCapMs(language);
-
-      if (durationMs > 0 && durationMs < AUTO_CLIP_MIN_MS) {
-        setPicking(false);
-        Alert.alert(autoclip.tooShortTitle, autoclip.tooShortBody);
-        return;
-      }
-
-      const go = async () => {
-        await requestNotifications();
-        const project = beginProject(asset.uri, durationMs, language, {
-          purpose: 'autoclip',
-          sourceName: pickedClipName(asset.fileName, null, new Date()),
-          ...(durationMs > capMs ? { transcribeUntilMs: capMs } : {}),
-        });
-        void makeThumbnail(project);
-        router.push(`/processing/${project.id}`);
-      };
-
-      if (durationMs > capMs) {
-        const minutes = Math.round(capMs / 60_000);
-        Alert.alert(autoclip.tooLongTitle(minutes), autoclip.tooLongBody(minutes, Math.round(durationMs / 60_000)), [
-          { text: autoclip.cancel, style: 'cancel', onPress: () => setPicking(false) },
-          { text: autoclip.continue, onPress: () => void go() },
-        ]);
-        return;
-      }
-      await go();
-    } catch (error) {
-      setPicking(false);
-      Alert.alert('That video could not be opened', describe(error));
-    }
-  }
-
   function open(project: Project) {
     if (project.status === 'ready') {
-      router.push(project.purpose === 'autoclip' ? `/autoclip/${project.id}` : `/project/${project.id}`);
+      router.push(`/project/${project.id}`);
       return;
     }
     router.push(`/processing/${project.id}`);
@@ -266,28 +211,35 @@ export default function Home() {
               </Pressable>
             </View>
             <Label variant="body" tone="mute" style={styles.blurb}>
-              Caption one clip, queue a batch, or cut shorts from a long video.
+              Caption one clip, or queue a batch of them.
             </Label>
 
             <View style={styles.action}>
-              <LanguageChip
-                language={language}
-                accent={DEFAULT_ACCENT}
-                from="language"
-                onChange={(next) => {
-                  setLanguage(next);
-                  rememberLanguage(next);
-                }}
-              />
-              <PrimaryButton
-                title="New video"
-                onPress={pickVideo}
-                accent={DEFAULT_ACCENT}
-                busy={picking}
-              />
-              <View style={styles.more}>
-                <SecondaryAction title={batchCopy.home} note={batchCopy.homeNote} onPress={pickBatch} />
-                <SecondaryAction title={autoclip.home} note={autoclip.homeNote} onPress={pickLong} />
+              {/* One card for "the next thing you make": the language it is
+                  spoken in, then the two ways to start. The setting sits above
+                  the button it applies to, inside the same edge, so it reads as
+                  part of the action rather than as a status line over it. */}
+              <View style={styles.card}>
+                <LanguageField
+                  language={language}
+                  accent={DEFAULT_ACCENT}
+                  from="language"
+                  framed={false}
+                  onChange={(next) => {
+                    setLanguage(next);
+                    rememberLanguage(next);
+                  }}
+                />
+                <View style={styles.cardRule} />
+                <View style={styles.cardActions}>
+                  <PrimaryButton
+                    title="New video"
+                    onPress={pickVideo}
+                    accent={DEFAULT_ACCENT}
+                    busy={picking}
+                  />
+                  <SecondaryAction title={batchCopy.home} note={batchCopy.homeNote} onPress={pickBatch} />
+                </View>
               </View>
               {/* Never quiet: a developer who forgot an override would be testing
                   a customer who does not exist. */}
@@ -346,20 +298,6 @@ export default function Home() {
   );
 }
 
-/** Auto clip is for long videos; under this, New video is the right door. */
-const AUTO_CLIP_MIN_MS = 5 * 60_000;
-
-/**
- * How much of a long video auto clip reads. An hour in English, which the
- * Stage 0 budget of 45 seconds per minute of audio puts at up to 45 minutes of
- * phone time; half an hour in the other four, whose model is several times
- * heavier and whose speed on the A54 is not measured yet. Longer, and the phone
- * is busy for longer than anybody will leave it alone.
- */
-function autoClipCapMs(language: Language): number {
-  return language === 'en' ? 60 * 60_000 : 30 * 60_000;
-}
-
 function SecondaryAction({ title, note, onPress }: { title: string; note: string; onPress: () => void }) {
   return (
     <Pressable
@@ -368,9 +306,14 @@ function SecondaryAction({ title, note, onPress }: { title: string; note: string
       onPress={onPress}
       style={({ pressed }) => [styles.secondary, { opacity: pressed ? 0.7 : 1 }]}
     >
-      <Label variant="heading">{title}</Label>
-      <Label variant="micro" tone="mute">
-        {note}
+      <View style={styles.secondaryText}>
+        <Label variant="heading">{title}</Label>
+        <Label variant="micro" tone="mute">
+          {note}
+        </Label>
+      </View>
+      <Label variant="heading" tone="mute">
+        ›
       </Label>
     </Pressable>
   );
@@ -455,18 +398,27 @@ const styles = StyleSheet.create({
   header: { gap: space.md, marginBottom: space.lg },
   blurb: { maxWidth: 320 },
   action: { gap: space.sm, marginTop: space.lg },
-  more: { flexDirection: 'row', gap: space.sm },
+  card: {
+    backgroundColor: color.surface,
+    borderRadius: radius.sheet,
+    borderWidth: 1,
+    borderColor: color.line,
+    overflow: 'hidden',
+  },
+  cardRule: { height: StyleSheet.hairlineWidth, backgroundColor: color.line, marginHorizontal: space.lg },
+  cardActions: { padding: space.md, gap: space.sm },
   secondary: {
-    flex: 1,
-    minHeight: MIN_TOUCH + 20,
-    justifyContent: 'center',
+    minHeight: MIN_TOUCH + 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     borderRadius: radius.control,
     borderWidth: 1,
     borderColor: color.line,
-    gap: 2,
   },
+  secondaryText: { flex: 1, gap: 2 },
   devRow: {
     minHeight: MIN_TOUCH,
     justifyContent: 'center',

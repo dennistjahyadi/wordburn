@@ -13,24 +13,12 @@ import type { Ms } from './types';
 import type { StyleOverrides } from './style';
 
 /** Where a job is. `transcribing` and `rendering` are the two slow halves. */
-export type JobStatus = 'queued' | 'cutting' | 'transcribing' | 'rendering' | 'done' | 'failed';
-
-/** A kept stretch of a longer video, for auto clip. The source's own timeline. */
-export interface SourceRange {
-  startMs: Ms;
-  endMs: Ms;
-}
+export type JobStatus = 'queued' | 'transcribing' | 'rendering' | 'done' | 'failed';
 
 export interface BatchJob {
   id: string;
-  /**
-   * What the job starts from. A whole clip from the gallery is transcribed and
-   * then rendered; a cut from auto clip already has its words and is cut, then
-   * rendered.
-   */
-  source:
-    | { kind: 'file'; uri: string; durationMs: Ms }
-    | { kind: 'cut'; projectId: string; segments: SourceRange[]; removedWordIds?: string[] };
+  /** What the job starts from: a whole clip from the gallery, transcribed and then rendered. */
+  source: { kind: 'file'; uri: string; durationMs: Ms };
   /** The original file's name without its extension, for the output's name. */
   name: string;
   status: JobStatus;
@@ -63,7 +51,7 @@ export interface Batch {
  */
 export const MAX_BATCH_CLIPS = 20;
 
-const ACTIVE: readonly JobStatus[] = ['cutting', 'transcribing', 'rendering'];
+const ACTIVE: readonly JobStatus[] = ['transcribing', 'rendering'];
 
 /**
  * The job to work on next: one that was interrupted mid-way first, then the
@@ -112,7 +100,6 @@ export function summarize(batch: Batch): BatchSummary {
       case 'done':
       case 'failed':
         return 1;
-      case 'cutting':
       case 'transcribing':
         return job.progress * 0.5;
       case 'rendering':
@@ -165,7 +152,7 @@ export function captionedFileName(original: string, taken: ReadonlySet<string>):
  */
 export function pickedClipName(
   fileName: string | null | undefined,
-  index: number | null,
+  index: number,
   at: Date
 ): string {
   const stem = (fileName ?? '').replace(/\.[A-Za-z0-9]{1,5}$/, '').trim();
@@ -181,13 +168,5 @@ export function pickedClipName(
 
   const pad = (value: number) => String(value).padStart(2, '0');
   const day = `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
-  // A single video — auto clip's long one — is just the day; its cuts add the minute.
-  return index === null ? day : `${day} clip ${pad(index + 1)}`;
-}
-
-/** A cut's name: the source's name and where in it the cut starts, "podcast 12m04s". */
-export function cutName(sourceName: string, startMs: Ms): string {
-  const seconds = Math.floor(startMs / 1000);
-  const label = `${Math.floor(seconds / 60)}m${String(seconds % 60).padStart(2, '0')}s`;
-  return `${sourceName} ${label}`;
+  return `${day} clip ${pad(index + 1)}`;
 }

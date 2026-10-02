@@ -6,13 +6,13 @@ against Google Play's limits and were measured, not estimated.
 | Field | Limit | This text | |
 |---|---|---|---|
 | App name | 30 | 26 | |
-| Short description | 80 | 76 | |
-| Full description | 4000 | 2470 | |
+| Short description | 80 | 79 | |
+| Full description | 4000 | 2038 | |
 
 **The positioning moved on 2026-09-30.** The listing used to sell "offline,
 on-device, pay once" to anybody who wanted captions on a clip. It now sells
-volume to the people who make a lot of clips: a batch queue, auto clip out of a
-long video, one style across all of it, five languages, and a subscription. The
+volume to the people who make a lot of clips: a batch queue, one style across
+all of it, five languages, and a subscription. The
 app still processes everything on the phone; that is said once, in the app's
 Settings, and not here, because it is a fact for somebody who goes looking
 rather than a reason to install.
@@ -30,21 +30,23 @@ with "Auto captions" to carry it. `Wordburn: Auto Captions, Clips` fits at 30
 and reads like a list; run it as a store listing experiment if the search term
 turns out to matter.
 
-## Short description — 80/76
+## Short description — 80/79
 
 ```
-Auto captions for every clip. Queue a batch or cut shorts from a long video.
+Auto captions for every clip, word by word. One video or a batch of 20 at once.
 ```
 
-Second-highest-weighted field. It names the two features that are new and that
-the category's cloud apps charge per minute for.
+Second-highest-weighted field. It names what the app does and the one feature
+that is new: a whole batch at once, which the category's cloud apps charge per
+minute for. It used to offer "cut shorts from a long video" as well; auto clip
+was taken out on 2026-10-02 to keep the app about captions.
 
-## Full description — 4000/2470
+## Full description — 4000/2038
 
 ```
 Wordburn puts captions on your short videos, one clip or a whole queue of them.
 
-Queue your clips, pick one style, and walk away. Wordburn works through the queue in the background and saves every captioned clip to your gallery. Or drop in a long podcast or stream and let auto clip suggest the short clips worth posting.
+Queue your clips, pick one style, and walk away. Wordburn works through the queue in the background and saves every captioned clip to your gallery.
 
 BATCH CAPTIONS
 - Pick up to 20 clips from your gallery at once
@@ -52,9 +54,6 @@ BATCH CAPTIONS
 - The queue keeps running while you use other apps, with progress for every clip
 - Finished clips land in a Wordburn album, named after the original
 - Save your look as a named style and reuse it on every batch
-
-AUTO CLIP
-Drop in a long video, from 5 minutes to an hour. Wordburn transcribes it, finds the moments that open with a hook and hold together, and suggests up to 10 clips of 20 to 60 seconds. Adjust where each one starts and ends, add your own, and send the ones you want to the batch queue. Turn on Remove dead air to cut long pauses and stray "um"s.
 
 WORD-BY-WORD CAPTIONS, READY TO EDIT
 Every word is timed on its own, so captions highlight exactly as they are spoken. Tap any word to fix it; its timing stays put. Words the recognizer was unsure about are flagged so you know what to check.
@@ -68,14 +67,14 @@ EDIT EVERY DETAIL
 - Undo and redo everything
 - A personal dictionary for your brand, your handle and the names it keeps getting wrong
 
-FIVE LANGUAGES
-English, Spanish, German, Dutch and Indonesian. Pick the language each clip is spoken in. English is built in; the other four use a larger speech model that is downloaded once.
+NINE LANGUAGES
+English, Dutch, French, German, Indonesian, Italian, Polish, Portuguese and Spanish. Pick the language each clip is spoken in. English is built in; the other eight share one larger speech model that is downloaded once.
 
 EXPORT
 Captions are burned in at full quality and saved to your gallery, with the audio copied across untouched. Export a .srt subtitle file too.
 
 WORDBURN PRO
-Single clips caption and export with a small watermark in the corner. Wordburn Pro removes it and adds batch captions, auto clip, Spanish, German, Dutch and Indonesian, and an unlimited dictionary. Weekly, monthly or yearly, with a free trial on the yearly plan where offered. Cancel anytime in Google Play.
+Single clips caption and export with a small watermark in the corner. Wordburn Pro removes it and adds batch captions, eight more languages, and an unlimited dictionary. Weekly, monthly or yearly, with a free trial on the yearly plan where offered. Cancel anytime in Google Play.
 
 Wordburn does not translate: captions are in the language that is spoken.
 ```

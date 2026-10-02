@@ -193,7 +193,8 @@ Counts are measured against Play's limits.
 
 The text and the reasoning are in `ASO.md`, which is the source; this is the
 same text, ready to paste. **Repositioned on 2026-09-30** from "offline, pay
-once" to batch captions and auto clip on a subscription.
+once" to batch captions on a subscription. Auto clip was in it until
+2026-10-02 and is not in the app any more.
 
 ### App name — 26/30
 
@@ -201,18 +202,18 @@ once" to batch captions and auto clip on a subscription.
 Wordburn: Captions & Clips
 ```
 
-### Short description — 76/80
+### Short description — 79/80
 
 ```
-Auto captions for every clip. Queue a batch or cut shorts from a long video.
+Auto captions for every clip, word by word. One video or a batch of 20 at once.
 ```
 
-### Full description — 2470/4000
+### Full description — 2038/4000
 
 ```
 Wordburn puts captions on your short videos, one clip or a whole queue of them.
 
-Queue your clips, pick one style, and walk away. Wordburn works through the queue in the background and saves every captioned clip to your gallery. Or drop in a long podcast or stream and let auto clip suggest the short clips worth posting.
+Queue your clips, pick one style, and walk away. Wordburn works through the queue in the background and saves every captioned clip to your gallery.
 
 BATCH CAPTIONS
 - Pick up to 20 clips from your gallery at once
@@ -220,9 +221,6 @@ BATCH CAPTIONS
 - The queue keeps running while you use other apps, with progress for every clip
 - Finished clips land in a Wordburn album, named after the original
 - Save your look as a named style and reuse it on every batch
-
-AUTO CLIP
-Drop in a long video, from 5 minutes to an hour. Wordburn transcribes it, finds the moments that open with a hook and hold together, and suggests up to 10 clips of 20 to 60 seconds. Adjust where each one starts and ends, add your own, and send the ones you want to the batch queue. Turn on Remove dead air to cut long pauses and stray "um"s.
 
 WORD-BY-WORD CAPTIONS, READY TO EDIT
 Every word is timed on its own, so captions highlight exactly as they are spoken. Tap any word to fix it; its timing stays put. Words the recognizer was unsure about are flagged so you know what to check.
@@ -236,20 +234,20 @@ EDIT EVERY DETAIL
 - Undo and redo everything
 - A personal dictionary for your brand, your handle and the names it keeps getting wrong
 
-FIVE LANGUAGES
-English, Spanish, German, Dutch and Indonesian. Pick the language each clip is spoken in. English is built in; the other four use a larger speech model that is downloaded once.
+NINE LANGUAGES
+English, Dutch, French, German, Indonesian, Italian, Polish, Portuguese and Spanish. Pick the language each clip is spoken in. English is built in; the other eight share one larger speech model that is downloaded once.
 
 EXPORT
 Captions are burned in at full quality and saved to your gallery, with the audio copied across untouched. Export a .srt subtitle file too.
 
 WORDBURN PRO
-Single clips caption and export with a small watermark in the corner. Wordburn Pro removes it and adds batch captions, auto clip, Spanish, German, Dutch and Indonesian, and an unlimited dictionary. Weekly, monthly or yearly, with a free trial on the yearly plan where offered. Cancel anytime in Google Play.
+Single clips caption and export with a small watermark in the corner. Wordburn Pro removes it and adds batch captions, eight more languages, and an unlimited dictionary. Weekly, monthly or yearly, with a free trial on the yearly plan where offered. Cancel anytime in Google Play.
 
 Wordburn does not translate: captions are in the language that is spoken.
 ```
 
 Every section of it describes a feature that ships in the same release. Paste it
-with the release that has batch, auto clip and the four languages in it, not
+with the release that has batch and the eight languages in it, not
 before: a listing that promises a queue the installed app does not have is the
 misleading-claims violation this file has been careful to avoid since section 1.
 
@@ -401,7 +399,7 @@ leaves the device.*
 keeps an event log (`src/analytics/events.ts`: paywall shown, plan chosen,
 export done and the like) — in `events.jsonl` in its own storage, never
 transmitted, so by Google's definition it is not collected. And the language
-model for Spanish, German, Dutch and Indonesian is downloaded from
+model for every language beyond English is downloaded from
 `huggingface.co` when the user asks for it: a file download, carrying nothing
 about the user beyond what any HTTP request carries, which the privacy policy
 now says in so many words. If the event log is ever sent anywhere, this form
@@ -492,7 +490,7 @@ finishes, fails or is paused.
 **Changed with batch captions and the language model, and it is not a small
 change.** The declaration above used to end "The service performs no network
 activity of any kind." That is no longer true: the same service holds the
-process while the Spanish/German/Dutch/Indonesian model downloads (874 MB, once,
+process while the multilingual model downloads (874 MB, once,
 on request), which is a `dataSync` use and not a media-processing one. Either
 declare **Data sync** as a second use case with its own sentence — "downloads a
 speech model the user asked for, once, with a progress notification" — or move
@@ -546,16 +544,14 @@ exports over an app that has no counter is the same violation the full
 description was fixed for in section 1. Whatever ships here has to agree with
 `src/policy/free-tier.ts`.
 
-### Pro release — 426/500
+### Pro release — 332/500
 
 ```
 Wordburn Pro is here.
 
 Batch captions: queue up to 20 clips, pick one language and one style, and let your phone work through them in the background.
 
-Auto clip: drop in a long video and get up to 10 suggested shorts, captioned. Trim them, cut dead air, and send them to the queue.
-
-Now in Spanish, German, Dutch and Indonesian as well as English.
+Now in Dutch, French, German, Indonesian, Italian, Polish, Portuguese and Spanish, as well as English.
 
 Single clips still caption and export with a small watermark. Pro removes it.
 ```
@@ -583,7 +579,7 @@ Monetise → Products → Subscriptions → Create subscription.
 |---|---|
 | Product ID | `wordburn_pro` — matches `PRO_PRODUCT_ID` in `src/policy/store.ts`, permanent once created |
 | Name | `Wordburn Pro` |
-| Benefits (shown by Play on the subscriptions page) | `No watermark` · `Batch captions` · `Auto clip` · `Spanish, German, Dutch, Indonesian` |
+| Benefits (shown by Play on the subscriptions page) | `No watermark` · `Batch captions` · `Captions in 8 more languages` |
 
 ### Three base plans
 

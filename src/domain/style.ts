@@ -56,7 +56,17 @@ export const EDITORIAL_MAX_ROWS = 3;
  * draw list names, so a new mode is a branch in `colorOf` and nowhere else.
  */
 export type HighlightMode = 'karaoke' | 'snap' | 'active' | 'box' | 'fade' | 'none';
-export type TextSize = 'S' | 'M' | 'L';
+/**
+ * How big the caption type is: the font size as a fraction of the canvas height.
+ *
+ * It was three letters, S, M and L, and three is the same complaint the four
+ * position names earned — a size that is right for a talking head is too small
+ * for a product shot and too big for a two-line quote, and there was nothing
+ * between. It is a number now, the way `CaptionPosition` became one, and the
+ * three letters are `TEXT_SIZE_RATIO`: one-tap stops on a slider that reaches
+ * everything between and either side of them.
+ */
+export type TextSize = number;
 /**
  * Where the caption block sits: the fraction of the canvas height its centre
  * lands on, 0 at the top edge and 1 at the bottom.
@@ -309,8 +319,36 @@ export type StyleOverrides = Partial<
   plate?: Partial<PlateStyle>;
 };
 
-/** Font size as a fraction of canvas height, so preview and export agree at any size. */
-export const TEXT_SIZE_RATIO: Record<TextSize, number> = { S: 0.036, M: 0.046, L: 0.058 };
+/**
+ * The three sizes the style sheet offers as one tap, and the presets are written
+ * in: font size as a fraction of canvas height, so preview and export agree at
+ * any size. Ordinary `TextSize` values with nothing special about them, the
+ * way `CAPTION_BAND` is for position.
+ */
+export const TEXT_SIZE_RATIO = { S: 0.036, M: 0.046, L: 0.058 } as const;
+
+/**
+ * How small and how big the slider goes.
+ *
+ * 0.026 is 50 px on a 1920-tall frame — about the smallest a phone held at arm's
+ * length reads — and 0.08 is 154 px, where a four-word line already needs most
+ * of the width and the layout's own shrink-to-fit starts taking over anyway.
+ */
+export const TEXT_SIZE_RANGE = { min: 0.026, max: 0.08 };
+
+/**
+ * How many words a caption line may hold, as the style sheet offers it.
+ *
+ * Five was the ceiling, and it is eight now because a podcast or a tutorial
+ * reads better as fewer, longer lines than as a strobe of short ones. Past
+ * eight a line is a paragraph on a phone. A long line does not run off the
+ * frame: the layout already shrinks a line that is wider than the canvas, and
+ * wraps into `maxRows` before it does.
+ */
+export const WORDS_PER_LINE_RANGE = { min: 1, max: 8 };
+
+/** How close a drag has to land to S, M or L before it is taken as that size. */
+export const TEXT_SIZE_SNAP = 0.0012;
 
 /** Row pitch as a multiple of the font size. */
 export const LINE_HEIGHT_RATIO = 1.24;
@@ -515,7 +553,7 @@ const UNSAID = '#FFFFFF8C';
  * redesign anticipated in *scrolling* rather than in drawing — see the note in
  * `StylePicker`.
  */
-export const STYLE_PRESETS: { id: string; name: string; props: StyleProps }[] = [
+const PRESET_DEFINITIONS: { id: string; name: string; props: StyleProps }[] = [
   {
     id: 'focus',
     name: 'Focus',
@@ -534,7 +572,7 @@ export const STYLE_PRESETS: { id: string; name: string; props: StyleProps }[] = 
       outlineRatio: 0,
       boxColor: FOCUS_BLUE,
       boxShadow: NO_SHADOW,
-      textSize: 'M',
+      textSize: TEXT_SIZE_RATIO.M,
       position: CAPTION_BAND.lower,
       align: 'center',
       maxWordsPerLine: 4,
@@ -591,7 +629,7 @@ export const STYLE_PRESETS: { id: string; name: string; props: StyleProps }[] = 
       outlineRatio: 0,
       boxColor: '#00000000',
       boxShadow: NO_SHADOW,
-      textSize: 'M',
+      textSize: TEXT_SIZE_RATIO.M,
       position: CAPTION_BAND.lower,
       align: 'center',
       maxWordsPerLine: 4,
@@ -636,7 +674,7 @@ export const STYLE_PRESETS: { id: string; name: string; props: StyleProps }[] = 
       outlineRatio: 0.055,
       boxColor: ACCENT,
       boxShadow: NO_SHADOW,
-      textSize: 'M',
+      textSize: TEXT_SIZE_RATIO.M,
       position: CAPTION_BAND.lower,
       align: 'center',
       maxWordsPerLine: MAX_WORDS_PER_LINE,
@@ -675,7 +713,7 @@ export const STYLE_PRESETS: { id: string; name: string; props: StyleProps }[] = 
       outlineRatio: 0.055,
       boxColor: '#00000000',
       boxShadow: NO_SHADOW,
-      textSize: 'M',
+      textSize: TEXT_SIZE_RATIO.M,
       position: CAPTION_BAND.lower,
       align: 'center',
       maxWordsPerLine: MAX_WORDS_PER_LINE,
@@ -717,7 +755,7 @@ export const STYLE_PRESETS: { id: string; name: string; props: StyleProps }[] = 
       outlineRatio: 0.03,
       boxColor: '#00000000',
       boxShadow: NO_SHADOW,
-      textSize: 'S',
+      textSize: TEXT_SIZE_RATIO.S,
       position: CAPTION_BAND.upper,
       align: 'left',
       maxWordsPerLine: 5,
@@ -756,7 +794,7 @@ export const STYLE_PRESETS: { id: string; name: string; props: StyleProps }[] = 
       outlineRatio: 0.04,
       boxColor: '#00000000',
       boxShadow: NO_SHADOW,
-      textSize: 'S',
+      textSize: TEXT_SIZE_RATIO.S,
       position: CAPTION_BAND.lower,
       align: 'center',
       maxWordsPerLine: 5,
@@ -798,7 +836,7 @@ export const STYLE_PRESETS: { id: string; name: string; props: StyleProps }[] = 
       outlineRatio: 0,
       boxColor: '#00000000',
       boxShadow: NO_SHADOW,
-      textSize: 'S',
+      textSize: TEXT_SIZE_RATIO.S,
       position: CAPTION_BAND.lower,
       align: 'center',
       maxWordsPerLine: 3,
@@ -842,7 +880,7 @@ export const STYLE_PRESETS: { id: string; name: string; props: StyleProps }[] = 
       outlineRatio: 0,
       boxColor: '#00000000',
       boxShadow: NO_SHADOW,
-      textSize: 'S',
+      textSize: TEXT_SIZE_RATIO.S,
       position: CAPTION_BAND.upper,
       align: 'left',
       maxWordsPerLine: 5,
@@ -887,7 +925,7 @@ export const STYLE_PRESETS: { id: string; name: string; props: StyleProps }[] = 
       outlineRatio: 0,
       boxColor: '#00000000',
       boxShadow: NO_SHADOW,
-      textSize: 'S',
+      textSize: TEXT_SIZE_RATIO.S,
       position: CAPTION_BAND.upper,
       align: 'center',
       maxWordsPerLine: 5,
@@ -936,7 +974,7 @@ export const STYLE_PRESETS: { id: string; name: string; props: StyleProps }[] = 
       outlineRatio: 0.022,
       boxColor: '#00000000',
       boxShadow: NO_SHADOW,
-      textSize: 'M',
+      textSize: TEXT_SIZE_RATIO.M,
       position: CAPTION_BAND.lower,
       align: 'center',
       maxWordsPerLine: 3,
@@ -981,7 +1019,7 @@ export const STYLE_PRESETS: { id: string; name: string; props: StyleProps }[] = 
       // what keeps a pale highlight — white is a swatch — a visible shape on a
       // white card.
       boxShadow: { color: INK, blurRatio: 0, dxRatio: 0.03, dyRatio: 0.03 },
-      textSize: 'S',
+      textSize: TEXT_SIZE_RATIO.S,
       position: CAPTION_BAND.upper,
       align: 'center',
       maxWordsPerLine: 3,
@@ -1040,7 +1078,7 @@ export const STYLE_PRESETS: { id: string; name: string; props: StyleProps }[] = 
       outlineRatio: 0.05,
       boxColor: '#00000000',
       boxShadow: NO_SHADOW,
-      textSize: 'M',
+      textSize: TEXT_SIZE_RATIO.M,
       position: CAPTION_BAND.lower,
       align: 'center',
       maxWordsPerLine: 4,
@@ -1087,7 +1125,7 @@ export const STYLE_PRESETS: { id: string; name: string; props: StyleProps }[] = 
       outlineRatio: 0,
       boxColor: '#00000000',
       boxShadow: NO_SHADOW,
-      textSize: 'M',
+      textSize: TEXT_SIZE_RATIO.M,
       position: CAPTION_BAND.lower,
       align: 'center',
       maxWordsPerLine: 4,
@@ -1132,7 +1170,7 @@ export const STYLE_PRESETS: { id: string; name: string; props: StyleProps }[] = 
       outlineRatio: 0,
       boxColor: '#00000000',
       boxShadow: NO_SHADOW,
-      textSize: 'S',
+      textSize: TEXT_SIZE_RATIO.S,
       position: CAPTION_BAND.lower,
       align: 'center',
       maxWordsPerLine: 5,
@@ -1183,7 +1221,7 @@ export const STYLE_PRESETS: { id: string; name: string; props: StyleProps }[] = 
       outlineRatio: 0,
       boxColor: '#FFFFFF',
       boxShadow: NO_SHADOW,
-      textSize: 'S',
+      textSize: TEXT_SIZE_RATIO.S,
       position: CAPTION_BAND.lower,
       align: 'center',
       maxWordsPerLine: 4,
@@ -1230,7 +1268,7 @@ export const STYLE_PRESETS: { id: string; name: string; props: StyleProps }[] = 
       outlineRatio: 0,
       boxColor: '#00000000',
       boxShadow: NO_SHADOW,
-      textSize: 'S',
+      textSize: TEXT_SIZE_RATIO.S,
       position: CAPTION_BAND.lower,
       align: 'center',
       maxWordsPerLine: 4,
@@ -1280,7 +1318,7 @@ export const STYLE_PRESETS: { id: string; name: string; props: StyleProps }[] = 
       outlineRatio: 0.02,
       boxColor: '#00000000',
       boxShadow: NO_SHADOW,
-      textSize: 'M',
+      textSize: TEXT_SIZE_RATIO.M,
       position: CAPTION_BAND.lower,
       align: 'center',
       maxWordsPerLine: 3,
@@ -1329,7 +1367,7 @@ export const STYLE_PRESETS: { id: string; name: string; props: StyleProps }[] = 
       outlineRatio: 0,
       boxColor: '#00000000',
       boxShadow: NO_SHADOW,
-      textSize: 'M',
+      textSize: TEXT_SIZE_RATIO.M,
       position: CAPTION_BAND.lower,
       align: 'center',
       maxWordsPerLine: 2,
@@ -1360,6 +1398,38 @@ export const STYLE_PRESETS: { id: string; name: string; props: StyleProps }[] = 
     },
   },
 ];
+
+/**
+ * The order the picker shows them in: most used in the market first.
+ *
+ * Nobody publishes per-template usage, so this is built from proxies, researched
+ * on 2026-10-02: which preset a tool applies by default (OpusClip's is a karaoke
+ * highlight), Captions.ai's Trending and New flags, the creator looks vendors
+ * name whole template families after (Hormozi, MrBeast), names that recur
+ * across tools (VEED's Box Highlight and Karaoke), and OpusClip's study of
+ * 13.5M clips, where 78.6% used animated captions and 1.6% static ones.
+ *
+ * The top three are well supported: the Hormozi look — bold caps, the word
+ * being said in yellow — is the one every tool ships a template for, and the
+ * karaoke and box highlights are the defaults and named styles around it. From
+ * fourth down it rests on listicles and vendor recommendations, and from
+ * eleventh it is niche looks ordered by how prominent their Captions.ai
+ * counterpart is. Neon and Newsprint have no market equivalent at all.
+ *
+ * This is not the default. `DEFAULT_STYLE_ID` answers a different question —
+ * what survives footage nobody has seen — and is Focus for the reasons given
+ * there; it sits fifth here, by popularity.
+ */
+const PRESET_ORDER = [
+  'bold', 'karaoke', 'box', 'clean', 'focus', 'rocket', 'headline', 'clarity', 'readalong',
+  'core', 'sonnet', 'stack', 'editorial', 'spotlight', 'neonglow', 'neon', 'negative', 'newsprint',
+] as const;
+
+export const STYLE_PRESETS: { id: string; name: string; props: StyleProps }[] = PRESET_ORDER.map((id) => {
+  const preset = PRESET_DEFINITIONS.find((entry) => entry.id === id);
+  if (!preset) throw new Error(`PRESET_ORDER names a preset that does not exist: ${id}`);
+  return preset;
+});
 
 /** The six swatches offered next to the custom colour picker. */
 export const HIGHLIGHT_SWATCHES = [ACCENT, '#3DDC84', '#FF5A5F', '#4D9BFF', '#C77DFF', '#FFFFFF'];
@@ -1399,8 +1469,12 @@ export function resolveStyle(styleId: string, overrides: StyleOverrides = {}): S
       opacityFrom: clamp01(merged.entrance.opacityFrom),
       ms: Math.max(0, merged.entrance.ms),
     },
-    maxWordsPerLine: Math.min(5, Math.max(1, Math.round(merged.maxWordsPerLine))),
+    maxWordsPerLine: Math.min(
+      WORDS_PER_LINE_RANGE.max,
+      Math.max(WORDS_PER_LINE_RANGE.min, Math.round(merged.maxWordsPerLine))
+    ),
     maxRows: Math.max(1, Math.round(merged.maxRows)),
+    textSize: textSizeOf(merged.textSize, base.textSize),
     position: captionPosition(merged.position, base.position),
     upcomingOpacity: Math.min(1, Math.max(0, merged.upcomingOpacity)),
     emphasis: {
@@ -1454,6 +1528,37 @@ export function snapPosition(value: number): CaptionPosition {
     if (Math.abs(value - band) <= BAND_SNAP) return band;
   }
   return captionPosition(value, CAPTION_BAND.lower);
+}
+
+/**
+ * A size a finger chose, taken as S, M or L when it lands near one — for the
+ * same reason `snapPosition` exists: a drag that can produce 0.0457 can never
+ * produce 0.046 again, and the chips would never light up once touched.
+ */
+export function snapTextSize(value: number): TextSize {
+  for (const stop of Object.values(TEXT_SIZE_RATIO)) {
+    if (Math.abs(value - stop) <= TEXT_SIZE_SNAP) return stop;
+  }
+  return textSizeOf(value, TEXT_SIZE_RATIO.M);
+}
+
+/**
+ * A size, whatever it arrives as.
+ *
+ * Every project and every saved look written before sizes were numbers carries
+ * "S", "M" or "L", and they are read here rather than migrated on disk — the
+ * same trade `captionPosition` makes for the old band names. Held to the
+ * slider's range and rounded to a ten-thousandth of the frame, a fifth of a
+ * pixel at 1920, so a drag writes a tidy number and two drags to the same place
+ * compare equal.
+ */
+export function textSizeOf(value: unknown, fallback: TextSize): TextSize {
+  if (typeof value === 'string') {
+    return value in TEXT_SIZE_RATIO ? TEXT_SIZE_RATIO[value as keyof typeof TEXT_SIZE_RATIO] : fallback;
+  }
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  const held = Math.min(TEXT_SIZE_RANGE.max, Math.max(TEXT_SIZE_RANGE.min, value));
+  return Math.round(held * 10000) / 10000;
 }
 
 export function captionPosition(value: unknown, fallback: CaptionPosition): CaptionPosition {

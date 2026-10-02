@@ -55,7 +55,6 @@ import {
   MAX_CHUNK_MS,
   MIN_SPAN_MS,
   openWhisper,
-  msToByteOffset,
   pcmDurationMs,
   SAMPLE_RATE,
   transcribeChunk,
@@ -184,10 +183,9 @@ export function cancelRun(): void {
 export function beginProject(
   sourceUri: string,
   durationMs: Ms,
-  language: Language = 'en',
-  extra: Pick<Partial<Project>, 'purpose' | 'sourceName' | 'transcribeUntilMs'> = {}
+  language: Language = 'en'
 ): Project {
-  const created = { ...createProject(sourceUri, durationMs, language), ...extra };
+  const created = createProject(sourceUri, durationMs, language);
 
   // Then the video itself, before any decoding: what the picker returned is a
   // copy in a cache the system may clear, and a project that outlives its video
@@ -228,11 +226,7 @@ async function run(initial: Project): Promise<void> {
     publish({ stage: 'extracting' });
     const pcm = await loadOrExtract(project);
     project = save({
-      // A capped read measures the cap, not the video; the picker's length is
-      // the better number then, and auto clip needs the real one for its outro.
-      ...(project.transcribeUntilMs === undefined
-        ? withRealDuration(loadFresh(project), pcmDurationMs(pcm.byteLength))
-        : loadFresh(project)),
+      ...withRealDuration(loadFresh(project), pcmDurationMs(pcm.byteLength)),
       status: 'transcribing',
     });
 
@@ -320,20 +314,6 @@ async function loadOrExtract(project: Project): Promise<ArrayBuffer> {
 
     await extractPcm16(project.sourceUri, `${pcmPath(project.id)}.part`);
     partial.rename(file.name);
-  }
-
-  // Auto clip reads at most the first hour of a long video. Only that much is
-  // read off disk: two hours of 16 kHz PCM is 230 MB, and holding it all to use
-  // half would be a memory spike for nothing.
-  const limit = project.transcribeUntilMs;
-  if (limit !== undefined && msToByteOffset(limit) < (file.size ?? 0)) {
-    const handle = file.open();
-    try {
-      const part = handle.readBytes(msToByteOffset(limit));
-      return part.buffer.slice(part.byteOffset, part.byteOffset + part.byteLength);
-    } finally {
-      handle.close();
-    }
   }
 
   const bytes = await file.bytes();

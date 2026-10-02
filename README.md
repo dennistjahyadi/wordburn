@@ -1,7 +1,7 @@
 # Wordburn
 
-Auto-captions for short vertical video: one clip, a batch, or shorts cut from a
-long video. One React Native codebase for Android and iOS.
+Auto-captions for short vertical video: one clip or a batch of them. One React
+Native codebase for Android and iOS.
 
 **Status: Phase 1.** The product is being built a vertical slice at a time. See
 [CLAUDE.md](CLAUDE.md) for the stack, the invariants and the slice order. This

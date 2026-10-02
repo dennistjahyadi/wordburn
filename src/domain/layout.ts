@@ -22,7 +22,6 @@ import {
   isPaintable,
   LINE_HEIGHT_RATIO,
   OWN_COLOR,
-  TEXT_SIZE_RATIO,
   type CaptionPosition,
   type FontWeight,
   type ShadowStyle,
@@ -204,7 +203,7 @@ export function layoutCaptionFrameFromLines(
   opts: LayoutOptions = {}
 ): CaptionFrame {
   const { line, word: activeWord } = activeWordInLines(lines, tMs, globalOffsetMs);
-  const baseFontSize = canvas.height * TEXT_SIZE_RATIO[style.textSize];
+  const baseFontSize = canvas.height * style.textSize;
 
   if (!line) {
     return {

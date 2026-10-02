@@ -28,7 +28,7 @@ export default function Languages() {
   const size = modelSizeLabel();
 
   function remove() {
-    Alert.alert(copy.manage.removeTitle, copy.manage.removeBody, [
+    Alert.alert(copy.manage.removeTitle, copy.manage.removeBody(size), [
       { text: copy.notNow, style: 'cancel' },
       { text: copy.manage.remove, style: 'destructive', onPress: () => deleteModel() },
     ]);

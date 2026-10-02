@@ -115,7 +115,7 @@ export default function Settings() {
   );
 }
 
-/** Whether the other four languages are on the phone. */
+/** Whether the languages beyond English are on the phone. */
 function languageDetail(model: ModelState): string {
   switch (model.kind) {
     case 'ready':

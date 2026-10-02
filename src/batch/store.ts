@@ -17,12 +17,28 @@ export function loadBatch(): Batch | null {
   const file = batchFile();
   if (!file.exists) return null;
   try {
-    return JSON.parse(file.textSync()) as Batch;
+    return retireCuts(JSON.parse(file.textSync()) as Batch);
   } catch {
     // A half-written file loses the queue, not the projects: every clip that
     // finished is already its own project on Home.
     return null;
   }
+}
+
+/**
+ * A batch written while auto clip existed can still hold one of its cuts,
+ * which nothing can run now. It is marked failed rather than left queued, where
+ * the queue would never reach it and the batch would never finish.
+ */
+function retireCuts(batch: Batch): Batch {
+  return {
+    ...batch,
+    jobs: batch.jobs.map((job) =>
+      (job.source.kind as string) === 'file' && (job.status as string) !== 'cutting'
+        ? job
+        : { ...job, status: 'failed', error: 'Auto clip is no longer part of Wordburn.' }
+    ),
+  };
 }
 
 export function saveBatch(batch: Batch | null): void {

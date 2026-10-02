@@ -51,12 +51,19 @@ export function WordSheet({
   accent,
   actions,
   onClose,
+  onPlay,
 }: {
   word: Word;
   facts: WordFacts;
   accent: string;
   actions: WordSheetActions;
   onClose: () => void;
+  /**
+   * Plays the word once more. The sheet plays it once on opening and then
+   * stops, because a word repeating under you while you type its correction
+   * was the loudest complaint the editor had; this is how to hear it again.
+   */
+  onPlay?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(word.text);
@@ -98,6 +105,9 @@ export function WordSheet({
           <Subline facts={facts} />
         </View>
 
+        {onPlay && !editing ? (
+          <SheetAction label="Play" onPress={onPlay} tone="quiet" accent={accent} accessibilityLabel={`Play “${word.text}” again`} />
+        ) : null}
         <SheetAction
           label={editing ? 'Save' : 'Done'}
           onPress={() => (editing ? commit(false) : onClose())}

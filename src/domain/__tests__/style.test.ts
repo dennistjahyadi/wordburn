@@ -16,6 +16,10 @@ import {
   STYLE_PRESETS,
   textColorOverrides,
   POSITION_RANGE,
+  snapTextSize,
+  TEXT_SIZE_RANGE,
+  TEXT_SIZE_RATIO,
+  textSizeOf,
 } from '../style';
 
 const RED = '#FF5A5F';
@@ -97,7 +101,7 @@ describe('styleChoices and styleOverridesFor', () => {
     const choices = {
       color: RED,
       textColor: '#111111',
-      textSize: 'L' as const,
+      textSize: TEXT_SIZE_RATIO.L,
       position: 0.62,
       maxWordsPerLine: 2,
     };
@@ -142,13 +146,14 @@ describe('styleChoices and styleOverridesFor', () => {
   });
 
   it('keep a size the user chose across a preset switch', () => {
-    const chosen = styleChoices('clean', styleOverridesFor('clean', { textSize: 'L' }));
+    const chosen = styleChoices('clean', styleOverridesFor('clean', { textSize: TEXT_SIZE_RATIO.L }));
 
-    expect(resolveStyle('box', styleOverridesFor('box', chosen)).textSize).toBe('L');
+    expect(resolveStyle('box', styleOverridesFor('box', chosen)).textSize).toBe(TEXT_SIZE_RATIO.L);
   });
 
   it('hold words per line inside what the layout accepts', () => {
-    expect(resolveStyle('box', styleOverridesFor('box', { maxWordsPerLine: 9 })).maxWordsPerLine).toBe(5);
+    expect(resolveStyle('box', styleOverridesFor('box', { maxWordsPerLine: 8 })).maxWordsPerLine).toBe(8);
+    expect(resolveStyle('box', styleOverridesFor('box', { maxWordsPerLine: 12 })).maxWordsPerLine).toBe(8);
     expect(resolveStyle('box', styleOverridesFor('box', { maxWordsPerLine: 0 })).maxWordsPerLine).toBe(1);
   });
 });
@@ -187,10 +192,10 @@ describe('the preset roster', () => {
     expect(new Set(STYLE_PRESETS.map((preset) => preset.name)).size).toBe(18);
   });
 
-  it('opens on the one new users land in', () => {
-    // First tile, first thing tapped, and the look every clip starts in until
-    // somebody chooses otherwise.
-    expect(STYLE_PRESETS[0].id).toBe(DEFAULT_STYLE_ID);
+  it('lists the most used looks first, and every preset exactly once', () => {
+    // Popularity, not the default: see PRESET_ORDER for the evidence.
+    expect(STYLE_PRESETS.slice(0, 3).map((preset) => preset.id)).toEqual(['bold', 'karaoke', 'box']);
+    expect(STYLE_PRESETS.slice(-2).map((preset) => preset.id)).toEqual(['negative', 'newsprint']);
   });
 
   it('starts new projects on one that exists', () => {
@@ -395,5 +400,39 @@ describe('resolveStyle', () => {
 
     expect(style.entrance.ms).toBe(0);
     expect(style.entrance.opacityFrom).toBe(1);
+  });
+});
+
+describe('text size as a number', () => {
+  it('reads the old letters every project and saved look was written with', () => {
+    expect(resolveStyle('clean', { textSize: 'L' as never }).textSize).toBe(TEXT_SIZE_RATIO.L);
+    expect(resolveStyle('box', { textSize: 'S' as never }).textSize).toBe(TEXT_SIZE_RATIO.S);
+    expect(textSizeOf('XL', TEXT_SIZE_RATIO.M)).toBe(TEXT_SIZE_RATIO.M);
+  });
+
+  it('keeps any size between the stops, held to the slider and rounded', () => {
+    expect(resolveStyle('clean', { textSize: 0.05123456 }).textSize).toBe(0.0512);
+    expect(textSizeOf(0.5, TEXT_SIZE_RATIO.M)).toBe(TEXT_SIZE_RANGE.max);
+    expect(textSizeOf(0, TEXT_SIZE_RATIO.M)).toBe(TEXT_SIZE_RANGE.min);
+    expect(textSizeOf(Number.NaN, TEXT_SIZE_RATIO.M)).toBe(TEXT_SIZE_RATIO.M);
+  });
+
+  it('snaps a drag that lands near S, M or L onto it, and leaves the rest alone', () => {
+    expect(snapTextSize(0.0455)).toBe(TEXT_SIZE_RATIO.M);
+    expect(snapTextSize(0.0585)).toBe(TEXT_SIZE_RATIO.L);
+    expect(snapTextSize(0.052)).toBe(0.052);
+  });
+
+  it('remembers an in-between size as a choice that follows the user across presets', () => {
+    const chosen = styleChoices('clean', styleOverridesFor('clean', { textSize: 0.052 }));
+    expect(chosen.textSize).toBe(0.052);
+    expect(resolveStyle('bold', styleOverridesFor('bold', chosen)).textSize).toBe(0.052);
+  });
+
+  it('writes every preset in sizes the slider can reach', () => {
+    for (const preset of STYLE_PRESETS) {
+      expect(preset.props.textSize).toBeGreaterThanOrEqual(TEXT_SIZE_RANGE.min);
+      expect(preset.props.textSize).toBeLessThanOrEqual(TEXT_SIZE_RANGE.max);
+    }
   });
 });

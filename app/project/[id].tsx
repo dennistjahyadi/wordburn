@@ -405,54 +405,112 @@ function Workspace({ stored }: { stored: Project }) {
     [player]
   );
 
-  const loop = useRef<{ startMs: Ms; endMs: Ms } | null>(null);
+  /**
+   * What the player is doing for the surface that is open.
+   *
+   * `repeat` plays the span over and over with sound: the timing and shift
+   * sheets, where a boundary or an offset is judged against what you hear, and
+   * hearing it again after every nudge is the tool. `once` plays it and stops on
+   * the span's own start, so the word is on the preview, highlighted: the word
+   * sheet. `quiet` plays it once with sound and then keeps looping it muted: the
+   * style sheet, whose tiles animate off this clock and need the video moving,
+   * but whose user is looking, not listening.
+   *
+   * Every surface used to be `repeat`. A word looping under you while you typed
+   * its correction, and a line looping for as long as you browsed eighteen
+   * styles, was the most annoying thing in the editor.
+   */
+  type LoopMode = 'repeat' | 'once' | 'quiet';
+  const loop = useRef<{ startMs: Ms; endMs: Ms; restMs: Ms; mode: LoopMode; entered: boolean } | null>(null);
   /** The last clock reading, for the sheets that need to know where we are. */
   const now = useRef(0);
+
+  const setMuted = useCallback(
+    (muted: boolean) => {
+      try {
+        if (player.muted !== muted) player.muted = muted;
+      } catch {
+        // Released on the way out. Nothing to unmute.
+      }
+    },
+    [player]
+  );
 
   useEffect(
     () =>
       clock.subscribe((tMs) => {
         now.current = tMs;
         const window = loop.current;
-        // Only the far edge re-seeks. Reacting to the near edge as well would
+        if (!window) return;
+        // The seek lands a frame or two after it is asked for, so a reading
+        // from before it says nothing until the playhead has been inside.
+        if (!window.entered && tMs >= window.startMs) window.entered = true;
+        // A span at the very end of the clip can run off it: the player loops
+        // back to zero before the far edge is ever reached. A reading a second
+        // behind the run-up, once inside, is that wrap — the end of one play.
+        const wrapped = window.entered && tMs + 1000 < window.startMs;
+        if (wrapped && window.mode === 'once') {
+          loop.current = null;
+          player.pause();
+          seekTo(window.restMs);
+          return;
+        }
+        // Only the far edge acts. Reacting to the near edge as well would
         // fight the seek that has just been asked for and has not landed yet.
-        if (window && tMs > window.endMs) seekTo(window.startMs);
+        if (tMs <= window.endMs) return;
+        if (window.mode === 'once') {
+          loop.current = null;
+          player.pause();
+          seekTo(window.restMs);
+          return;
+        }
+        if (window.mode === 'quiet') setMuted(true);
+        seekTo(window.startMs);
       }),
-    [clock, seekTo]
+    [clock, player, seekTo, setMuted]
   );
 
   /**
-   * Plays a span over and over, with the run-up and run-out around it.
-   *
-   * Every editing surface listens to what it is about to change, so every one of
-   * them comes through here and the pre-roll is the same wherever you are.
+   * Plays a span with the run-up and run-out around it, in the mode the surface
+   * asks for. Every editing surface comes through here, so the pre-roll is the
+   * same wherever you are.
    */
   const loopSpan = useCallback(
-    (startMs: Ms, endMs: Ms) => {
+    (startMs: Ms, endMs: Ms, mode: LoopMode = 'repeat') => {
       loop.current = {
         startMs: Math.max(0, startMs - LOOP_PRE_ROLL_MS),
         endMs: endMs + LOOP_POST_ROLL_MS,
+        restMs: startMs,
+        mode,
+        entered: false,
       };
+      setMuted(false);
       seekTo(loop.current.startMs);
       player.play();
     },
-    [player, seekTo]
+    [player, seekTo, setMuted]
   );
 
+  /** Leaves the player where it is, playing or not, with its sound back on. */
   const stopLoop = useCallback(() => {
     loop.current = null;
-  }, []);
+    setMuted(false);
+  }, [setMuted]);
 
   const offsetMs = project.globalOffsetMs;
 
-  /** Loops a word and opens its sheet. The two always happen together. */
+  /** Plays a word once and opens its sheet. The two always happen together. */
   const openWord = useCallback(
     (word: Word) => {
-      loopSpan(word.start + offsetMs, word.end + offsetMs);
+      loopSpan(word.start + offsetMs, word.end + offsetMs, 'once');
       setSelectedId(word.id);
     },
     [loopSpan, offsetMs]
   );
+
+  const playSelected = useCallback(() => {
+    if (selected) loopSpan(selected.start + offsetMs, selected.end + offsetMs, 'once');
+  }, [loopSpan, offsetMs, selected]);
 
   const closeWord = useCallback(() => {
     stopLoop();
@@ -510,11 +568,11 @@ function Workspace({ stored }: { stored: Project }) {
     [editor, project.words, timingId]
   );
 
-  /** Backing out of the timing sheet drops the draft and listens to the word again. */
+  /** Backing out of the timing sheet drops the draft and plays the word once more. */
   const closeTiming = useCallback(() => {
     setPreview(null);
     setTimingId(null);
-    if (timingWord) loopSpan(timingWord.start + offsetMs, timingWord.end + offsetMs);
+    if (timingWord) loopSpan(timingWord.start + offsetMs, timingWord.end + offsetMs, 'once');
   }, [loopSpan, offsetMs, timingWord]);
 
   /**
@@ -557,14 +615,17 @@ function Workspace({ stored }: { stored: Project }) {
   }, [stopLoop]);
 
   /**
-   * Opens the style sheet on the line that is on screen, and loops it.
+   * Opens the style sheet on the line that is on screen, and loops it — heard
+   * once, then silent.
    *
-   * Nine presets side by side are only comparable on the same words, and the
-   * words the user was looking at are the ones they want to see in each.
+   * The presets side by side are only comparable on the same words, and the
+   * words the user was looking at are the ones they want to see in each. The
+   * tiles animate off the player's clock, so the video keeps moving; the sound
+   * stops after the first pass, because nobody choosing a font is listening.
    */
   const openStyle = useCallback(() => {
     const line = source.lineAt(now.current) ?? source.units[0];
-    if (line) loopSpan(line.startMs + offsetMs, line.endMs + offsetMs);
+    if (line) loopSpan(line.startMs + offsetMs, line.endMs + offsetMs, 'quiet');
     setStyling(true);
   }, [loopSpan, offsetMs, source]);
 
@@ -685,7 +746,7 @@ function Workspace({ stored }: { stored: Project }) {
           onSeek={(tMs) => {
             // Scrubbing by hand is the end of the loop: the user has said where
             // they want to be.
-            loop.current = null;
+            stopLoop();
             seekTo(tMs);
           }}
         />
@@ -804,6 +865,7 @@ function Workspace({ stored }: { stored: Project }) {
               facts={factsFor(project, selected, selectedIndex)}
               actions={actionsFor(editor, selected, selectedIndex, newId, closeWord, setTimingId)}
               onClose={closeWord}
+              onPlay={playSelected}
             />
           ) : shiftLine ? (
             <ShiftSheet

@@ -5,7 +5,7 @@
  *
  * A caption app that blows up "the" because the speaker happened to lean on it
  * looks broken, so these are excluded outright rather than scored down. This is
- * English's list; the other four languages have shorter ones in `language.ts`.
+ * English's list; the other languages have shorter ones in `language.ts`.
  *
  * Fillers are in here too. "Like", "just", "really", "so", "um" are often the
  * loudest and longest things a creator says, which is exactly why they need to

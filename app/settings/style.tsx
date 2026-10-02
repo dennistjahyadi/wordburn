@@ -11,8 +11,9 @@
  * The preview is the video's rectangle at 9:16 with no video behind it: the
  * shape this app is for, and the frame the export renders into.
  *
- * It is also the second step of first launch (`?onboarding=1`): pick a look
- * once, and every video, every batch and every auto clip starts in it, so
+ * It is also the third step of first launch (`?onboarding=1`), after the
+ * language (`app/language.tsx`): pick a look
+ * once, and every video and every batch starts in it, so
  * nobody restyles the same captions clip after clip. There it has Continue
  * instead of Back, and Continue goes Home.
  */

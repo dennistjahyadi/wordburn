@@ -54,10 +54,14 @@ import {
   projectStyle,
   safeZoneUnion,
   snapPosition,
+  snapTextSize,
   styleChoices,
   styleOverridesFor,
   STYLE_PRESETS,
+  TEXT_SIZE_RANGE,
+  TEXT_SIZE_RATIO,
   TEXT_SWATCHES,
+  WORDS_PER_LINE_RANGE,
   type CaptionPosition,
   type MeasureText,
   type Project,
@@ -150,12 +154,14 @@ const TARGETS: { value: ColorTarget; label: string }[] = [
 const NUDGE = 0.01;
 
 const SIZES: { value: TextSize; label: string }[] = [
-  { value: 'S', label: 'S' },
-  { value: 'M', label: 'M' },
-  { value: 'L', label: 'L' },
+  { value: TEXT_SIZE_RATIO.S, label: 'S' },
+  { value: TEXT_SIZE_RATIO.M, label: 'M' },
+  { value: TEXT_SIZE_RATIO.L, label: 'L' },
 ];
 
-const WORDS_PER_LINE = [1, 2, 3, 4, 5];
+/** How far one accessibility increment changes the size, as a fraction of the frame. */
+const SIZE_NUDGE = 0.002;
+
 
 export function StylePicker({
   project,
@@ -316,7 +322,13 @@ export function StylePicker({
           />
         </Field>
 
-        <Field label="Size">
+        <Field label="Size" hint="Drag to any size, or tap S, M or L.">
+          <SizeSlider
+            size={style.textSize}
+            accent={accent}
+            onDrag={setDragging}
+            onPick={(textSize) => set({ textSize })}
+          />
           <Choices
             options={SIZES}
             value={style.textSize}
@@ -347,10 +359,12 @@ export function StylePicker({
         </Field>
 
         <Field label="Words per line">
-          <Choices
-            options={WORDS_PER_LINE.map((count) => ({ value: count, label: String(count) }))}
+          <Stepper
             value={style.maxWordsPerLine}
-            accent={accent}
+            min={WORDS_PER_LINE_RANGE.min}
+            max={WORDS_PER_LINE_RANGE.max}
+            unit={(count) => (count === 1 ? '1 word' : `${count} words`)}
+            accessibilityLabel="Words per line"
             onPick={(maxWordsPerLine) => set({ maxWordsPerLine })}
           />
         </Field>
@@ -686,6 +700,172 @@ function FrameDial({
 const DIAL_BAR = 0.06;
 
 /**
+ * Caption size, continuous, the way the dial made position continuous.
+ *
+ * S, M and L were the only three sizes there were, and a size that is right for
+ * a talking head is too small for a product shot and too big for a two-line
+ * quote. This reaches everything in `TEXT_SIZE_RANGE`, live: the preview above
+ * the sheet redraws as the thumb moves, which is the one drawing of what it
+ * does (invariant 2) — so the track itself shows no text, only a small and a
+ * large letter at its ends to say which way is bigger, and ticks where S, M and
+ * L sit. A drag that lands near one snaps onto it, so the chips under it still
+ * light up.
+ */
+function SizeSlider({
+  size,
+  accent,
+  onDrag,
+  onPick,
+}: {
+  size: TextSize;
+  accent: string;
+  /** Held while a finger is down, so the list this sits in stops scrolling. */
+  onDrag: (dragging: boolean) => void;
+  onPick: (size: TextSize) => void;
+}) {
+  const [width, setWidth] = useState(0);
+
+  // Refs for everything the responder reads, for the reason the dial and the
+  // hue strip give: it outlives the render that built it.
+  const track = useRef(0);
+  track.current = width;
+  const picked = useRef(onPick);
+  picked.current = onPick;
+  const dragged = useRef(onDrag);
+  dragged.current = onDrag;
+  const grabbed = useRef(0);
+
+  const responder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        // A thumb sliding sideways drifts up and down too, and the list under
+        // it would take that as a scroll and steal the drag.
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderGrant: (event) => {
+          dragged.current(true);
+          grabbed.current = event.nativeEvent.locationX;
+          pick(grabbed.current);
+        },
+        onPanResponderMove: (_event, gesture) => pick(grabbed.current + gesture.dx),
+        onPanResponderRelease: () => dragged.current(false),
+        onPanResponderTerminate: () => dragged.current(false),
+      }),
+    []
+  );
+
+  const span = TEXT_SIZE_RANGE.max - TEXT_SIZE_RANGE.min;
+  const at = (value: number) => (value - TEXT_SIZE_RANGE.min) / span;
+  const fraction = Math.min(1, Math.max(0, at(size)));
+
+  return (
+    <View style={styles.sizeRow}>
+      <Label variant="micro" tone="mute">
+        A
+      </Label>
+      <View
+        {...responder.panHandlers}
+        onLayout={(event) => setWidth(Math.round(event.nativeEvent.layout.width))}
+        accessibilityRole="adjustable"
+        accessibilityLabel="Caption size"
+        accessibilityValue={{ text: `${Math.round(size * 1920)} pixels on a 1080 by 1920 video` }}
+        accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+        onAccessibilityAction={(event) =>
+          onPick(snapTextSize(size + (event.nativeEvent.actionName === 'increment' ? SIZE_NUDGE : -SIZE_NUDGE)))
+        }
+        style={styles.sizeTrackArea}
+      >
+        <View pointerEvents="none" style={styles.sizeTrack}>
+          <View style={[styles.sizeFill, { width: `${fraction * 100}%`, backgroundColor: accent }]} />
+        </View>
+        {Object.values(TEXT_SIZE_RATIO).map((stop) => (
+          <View key={stop} pointerEvents="none" style={[styles.sizeTick, { left: `${at(stop) * 100}%` }]} />
+        ))}
+        {width > 0 ? (
+          <View
+            pointerEvents="none"
+            style={[styles.sizeThumb, { left: fraction * width - SIZE_THUMB / 2, borderColor: accent }]}
+          />
+        ) : null}
+      </View>
+      <Label variant="heading" tone="mute">
+        A
+      </Label>
+    </View>
+  );
+
+  function pick(x: number) {
+    if (track.current <= 0) return;
+    const fraction = Math.min(1, Math.max(0, x / track.current));
+    picked.current(snapTextSize(TEXT_SIZE_RANGE.min + fraction * (TEXT_SIZE_RANGE.max - TEXT_SIZE_RANGE.min)));
+  }
+}
+
+const SIZE_THUMB = 26;
+
+/**
+ * A small whole number, one step at a time.
+ *
+ * Words per line was a row of five chips, and eight chips across a phone are
+ * each narrower than a fingertip. A stepper keeps both buttons full size, says
+ * the value in words rather than a bare digit, and costs one tap per step —
+ * which over a range of eight, starting from where the preset put it, is
+ * rarely more than three.
+ */
+function Stepper({
+  value,
+  min,
+  max,
+  unit,
+  accessibilityLabel,
+  onPick,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  unit: (value: number) => string;
+  accessibilityLabel: string;
+  onPick: (value: number) => void;
+}) {
+  const step = (by: number) => onPick(Math.min(max, Math.max(min, value + by)));
+  return (
+    <View
+      style={styles.stepper}
+      accessibilityRole="adjustable"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityValue={{ min, max, now: value, text: unit(value) }}
+      accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+      onAccessibilityAction={(event) => step(event.nativeEvent.actionName === 'increment' ? 1 : -1)}
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Fewer"
+        accessibilityState={{ disabled: value <= min }}
+        disabled={value <= min}
+        onPress={() => step(-1)}
+        style={({ pressed }) => [styles.stepButton, { opacity: value <= min ? 0.3 : pressed ? 0.6 : 1 }]}
+      >
+        <Label variant="heading">−</Label>
+      </Pressable>
+      <Label variant="body" style={styles.stepValue}>
+        {unit(value)}
+      </Label>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="More"
+        accessibilityState={{ disabled: value >= max }}
+        disabled={value >= max}
+        onPress={() => step(1)}
+        style={({ pressed }) => [styles.stepButton, { opacity: value >= max ? 0.3 : pressed ? 0.6 : 1 }]}
+      >
+        <Label variant="heading">+</Label>
+      </Pressable>
+    </View>
+  );
+}
+
+/**
  * Every hue, at the one saturation that reads on video.
  *
  * Drawn in Skia because it is a gradient and React Native has none; a strip of
@@ -857,6 +1037,30 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   choices: { flexDirection: 'row', gap: space.sm },
+  sizeRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    borderRadius: radius.control,
+    borderWidth: 1,
+    borderColor: color.line,
+  },
+  stepButton: { width: MIN_TOUCH + 8, height: MIN_TOUCH, alignItems: 'center', justifyContent: 'center' },
+  stepValue: { minWidth: 96, textAlign: 'center' },
+  sizeTrackArea: { flex: 1, height: MIN_TOUCH, justifyContent: 'center' },
+  sizeTrack: { height: 6, borderRadius: radius.pill, backgroundColor: color.line, overflow: 'hidden' },
+  sizeFill: { height: '100%' },
+  sizeTick: { position: 'absolute', width: 2, height: 12, marginLeft: -1, borderRadius: 1, backgroundColor: color.mute, top: (MIN_TOUCH - 12) / 2 },
+  sizeThumb: {
+    position: 'absolute',
+    width: SIZE_THUMB,
+    height: SIZE_THUMB,
+    top: (MIN_TOUCH - SIZE_THUMB) / 2,
+    borderRadius: SIZE_THUMB / 2,
+    borderWidth: 3,
+    backgroundColor: color.paper,
+  },
   stacked: { flex: 1, flexDirection: 'column' },
   choice: {
     flex: 1,

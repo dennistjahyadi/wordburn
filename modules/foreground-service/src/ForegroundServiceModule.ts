@@ -1,4 +1,4 @@
-import { NativeModule, requireNativeModule } from 'expo';
+import { NativeModule, requireOptionalNativeModule } from 'expo';
 
 declare class ForegroundServiceModule extends NativeModule {
   /** Starts the service and shows its notification at `percent`. */
@@ -15,4 +15,9 @@ declare class ForegroundServiceModule extends NativeModule {
   requestNotificationPermission(): Promise<boolean>;
 }
 
-export default requireNativeModule<ForegroundServiceModule>('ForegroundService');
+/**
+ * Null on iOS, where there is no such thing as a foreground service and no
+ * native side to this module. `requireNativeModule` would throw on import there,
+ * which is every screen, because the root layout reaches this file.
+ */
+export default requireOptionalNativeModule<ForegroundServiceModule>('ForegroundService');

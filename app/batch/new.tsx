@@ -26,7 +26,7 @@ import { loadLooks } from '../../src/project/presets-store';
 import { loadSettings, rememberLanguage } from '../../src/project/settings';
 import { Divider, Label, PrimaryButton, QuietButton, Screen } from '../../src/ui/atoms';
 import { batch as copy } from '../../src/ui/copy';
-import { ensureLanguageReady, LanguageChip } from '../../src/ui/language';
+import { ensureLanguageReady, LanguageField } from '../../src/ui/language';
 import { color, DEFAULT_ACCENT, MIN_TOUCH, radius, space } from '../../src/ui/theme';
 
 type Look = {
@@ -41,12 +41,7 @@ export default function NewBatch() {
   const draft = useMemo(() => takeDraft(), []);
   const picked = draft.jobs;
   const clips = picked.slice(0, MAX_BATCH_CLIPS);
-  // Cuts were transcribed as part of the long video, so their language is
-  // already decided and is not offered again.
-  const fixedLanguage = draft.language;
-  const [language, setLanguage] = useState<Language>(
-    () => fixedLanguage ?? loadSettings().language
-  );
+  const [language, setLanguage] = useState<Language>(() => loadSettings().language);
   const [starting, setStarting] = useState(false);
 
   const looks = useMemo(() => {
@@ -80,7 +75,7 @@ export default function NewBatch() {
 
   async function start() {
     if (clips.length === 0) return;
-    if (!fixedLanguage && !ensureLanguageReady(language, 'batch')) return;
+    if (!ensureLanguageReady(language, 'batch')) return;
 
     setStarting(true);
     try {
@@ -140,22 +135,17 @@ export default function NewBatch() {
           ) : null}
         </View>
 
-        {fixedLanguage ? null : (
-          <View style={styles.block}>
-            <Label variant="label" tone="mute">
-              {copy.language}
-            </Label>
-            <LanguageChip
-              language={language}
-              accent={DEFAULT_ACCENT}
-              from="batch"
-              onChange={(next) => {
-                setLanguage(next);
-                rememberLanguage(next);
-              }}
-            />
-          </View>
-        )}
+        <View style={styles.block}>
+          <LanguageField
+            language={language}
+            accent={DEFAULT_ACCENT}
+            from="batch"
+            onChange={(next) => {
+              setLanguage(next);
+              rememberLanguage(next);
+            }}
+          />
+        </View>
 
         <View style={styles.block}>
           <Label variant="label" tone="mute">

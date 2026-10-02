@@ -6,11 +6,10 @@
  * idle and freezing or killing it. A foreground service is what says otherwise,
  * and the notification is the price Android charges for saying it.
  *
- * Android only. On iOS every call is a no-op and the runner stops cleanly at the
- * end of the current chunk instead, which is v1's stated scope.
+ * Android only. On iOS the module is null, every call is a no-op and the runner
+ * stops cleanly at the end of the current chunk instead, which is v1's stated
+ * scope.
  */
-import { Platform } from 'react-native';
-
 import ForegroundService from '../../modules/foreground-service';
 
 /**
@@ -38,7 +37,7 @@ export async function release(): Promise<void> {
 
 /** The phone's thermal status, or 0 where there is no way to ask. */
 export function thermalStatus(): number {
-  if (Platform.OS !== 'android') return 0;
+  if (!ForegroundService) return 0;
   try {
     return ForegroundService.thermalStatus();
   } catch {
@@ -48,7 +47,7 @@ export function thermalStatus(): number {
 
 /** Physical RAM in bytes, or null where there is no way to ask. */
 export function totalMemory(): number | null {
-  if (Platform.OS !== 'android') return null;
+  if (!ForegroundService) return null;
   try {
     return ForegroundService.totalMemory();
   } catch {
@@ -62,7 +61,7 @@ export async function start(text: string, percent: number): Promise<void> {
 }
 
 async function startService(text: string, percent: number): Promise<void> {
-  if (Platform.OS !== 'android') return;
+  if (!ForegroundService) return;
   try {
     await ForegroundService.start(text, percent);
   } catch {
@@ -72,7 +71,7 @@ async function startService(text: string, percent: number): Promise<void> {
 }
 
 export async function update(percent: number): Promise<void> {
-  if (Platform.OS !== 'android') return;
+  if (!ForegroundService) return;
   try {
     await ForegroundService.update(percent);
   } catch {
@@ -81,7 +80,7 @@ export async function update(percent: number): Promise<void> {
 }
 
 export async function stop(): Promise<void> {
-  if (Platform.OS !== 'android' || held) return;
+  if (!ForegroundService || held) return;
   try {
     await ForegroundService.stop();
   } catch {
@@ -91,7 +90,7 @@ export async function stop(): Promise<void> {
 
 /** Asks for the notification permission Android 13 and up needs to show progress. */
 export async function requestNotifications(): Promise<boolean> {
-  if (Platform.OS !== 'android') return true;
+  if (!ForegroundService) return true;
   try {
     return await ForegroundService.requestNotificationPermission();
   } catch {

@@ -21,9 +21,8 @@ export type AnalyticsEvent =
   | { name: 'trial_started'; plan: PlanId }
   | { name: 'subscribed'; plan: PlanId }
   | { name: 'batch_started'; count: number }
-  | { name: 'autoclip_run'; duration_min: number; clips_found: number }
   | { name: 'language_selected'; language: string }
-  | { name: 'export_done'; kind: 'single' | 'batch' | 'autoclip' };
+  | { name: 'export_done'; kind: 'single' | 'batch' };
 
 /** Enough to see a month of heavy use; trimmed to this once it grows past it. */
 export const MAX_EVENTS = 2000;

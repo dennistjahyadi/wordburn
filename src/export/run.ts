@@ -42,7 +42,7 @@ export interface ExportRequest {
   reducedMotion: boolean;
   onProgress(done: number): void;
   /** Which door the export came through, for the event log and nothing else. */
-  kind?: 'single' | 'batch' | 'autoclip';
+  kind?: 'single' | 'batch';
   /**
    * What to call the file, without its extension. A batch names each clip after
    * the one it came from (`<original>_captioned`); a single export is named by
@@ -71,8 +71,20 @@ export interface ExportOutcome {
   elapsedMs: Ms;
 }
 
+/**
+ * False on iOS, where the burn-in has not been written: the module is Kotlin
+ * and there is no Swift one. A screen reads this to say so before anything is
+ * asked for, rather than leaving a button that can only fail.
+ */
+export const canExport = BurnIn !== null;
+
+function burnIn(): NonNullable<typeof BurnIn> {
+  if (!BurnIn) throw new Error('Exporting is not built for iPhone yet.');
+  return BurnIn;
+}
+
 export async function probeSource(project: Project): Promise<VideoInfo> {
-  return BurnIn.probe(project.sourceUri);
+  return burnIn().probe(project.sourceUri);
 }
 
 /**
@@ -146,7 +158,7 @@ export async function runExport(request: ExportRequest): Promise<ExportOutcome> 
   const { project, measure, resolution, alsoSrt, reducedMotion, onProgress } = request;
   const started = Date.now();
 
-  const info = await BurnIn.probe(project.sourceUri);
+  const info = await burnIn().probe(project.sourceUri);
   const size = plannedSize(info, resolution);
   // A frame rate is only ever used to tell the encoder what to aim for. Every
   // frame keeps the timestamp it arrived with, so the file comes out at whatever
@@ -169,7 +181,7 @@ export async function runExport(request: ExportRequest): Promise<ExportOutcome> 
     )
   );
 
-  const subscription = BurnIn.addListener('progress', (event) => {
+  const subscription = burnIn().addListener('progress', (event) => {
     onProgress(event.done);
     ForegroundService.update(Math.round(event.done * 100)).catch(() => undefined);
   });
@@ -178,7 +190,7 @@ export async function runExport(request: ExportRequest): Promise<ExportOutcome> 
   ForegroundService.start('Rendering your captions', 0).catch(() => undefined);
 
   try {
-    const rendered = await BurnIn.render(
+    const rendered = await burnIn().render(
       project.sourceUri,
       planFile.uri.replace('file://', ''),
       outputFile.uri.replace('file://', '')
@@ -222,7 +234,7 @@ export async function runExport(request: ExportRequest): Promise<ExportOutcome> 
 
 /** Stops a render in flight. The partial file never reaches the gallery. */
 export function cancelExport(): void {
-  BurnIn.cancel();
+  BurnIn?.cancel();
 }
 
 /**
@@ -278,7 +290,7 @@ async function saveSrt(project: Project, directory: Directory, name: string): Pr
   file.write(toSrt(projectUnits(project, style), project.globalOffsetMs, { uppercase: style.uppercase }));
 
   try {
-    return await BurnIn.saveToDownloads(
+    return await burnIn().saveToDownloads(
       file.uri.replace('file://', ''),
       `${name}.srt`,
       'application/x-subrip'

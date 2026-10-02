@@ -48,20 +48,37 @@ the worklets plugin on its own once the package is present, so there is still no
 
 ## Scope
 
-**Five languages since slice 16: English, Spanish, German, Dutch and
-Indonesian.** English stays on the bundled `base.en-q8_0`, which the Stage 0
-spike chose for English on both speed and accuracy and which nothing here has
-reason to disturb. The other four share one downloaded model,
+**Nine languages: English, and Dutch, French, German, Indonesian, Italian,
+Polish, Portuguese and Spanish.** English stays on the bundled `base.en-q8_0`,
+which the Stage 0 spike chose for English on both speed and accuracy and which
+nothing here has reason to disturb. The other eight share one downloaded model,
 `large-v3-turbo-q8_0` (874 MB), chosen in
 `reports/Multilingual Whisper model for Android.md` as the only file a phone can
-plausibly run under about 6.5% word error on read speech in all four. The
-language is always the user's choice, made before the video is picked and
-passed on every call — never auto-detected. Non-English words inside an English
-sentence are still the dictionary's job. See README for the English evidence.
+plausibly run under about 6.5% word error on read speech in Spanish, German,
+Dutch and Indonesian, the four slice 16 shipped. The language is always the
+user's choice, made before the video is picked and passed on every call — never
+auto-detected. Non-English words inside an English sentence are still the
+dictionary's job. See README for the English evidence.
 
-Out of scope: languages beyond those five, language detection, translation,
-cloud anything, accounts, trimming inside the editor (auto clip trims its own
-ranges; see slice 18), multiple speakers, emoji or B-roll or auto-zoom, iOS
+**French, Italian, Portuguese and Polish cost a word list each and no
+download.** Whisper's multilingual weights are one set for every language it
+knows, so there is no smaller per-language file to fetch: a "Spanish model" is
+the same 874 MB. What decides the list is not the model, which knows about a
+hundred languages, but two checks. The caption faces are Latin-only — fontTools
+over `assets/fonts` finds no Cyrillic, Greek, Arabic, Hebrew, Thai, Devanagari,
+CJK or Hangul in either face, and Be Vietnam Pro lacks Romanian's ș and ț — so
+anything else burns in as boxes. And among Latin-script languages, these four
+score at or under Indonesian's 6.1% on FLEURS in OpenAI's large-v3 breakdown
+(`language-breakdown.svg` in openai/whisper): Italian 3.0, Portuguese 4.1,
+Polish 4.6, French 5.3. French is 10.8 on Common Voice 15 against Indonesian's
+7.2, the one number that argues against it. Turkish 6.7, Malay 7.3 and Swedish
+7.6 are next in line. Each language owns a stopword list; those for the four
+new ones were written from knowledge of the languages and have not been read by
+a native speaker. **None of the four has run anywhere**, not even the emulator.
+
+Out of scope: languages beyond those nine, language detection, translation,
+cloud anything, accounts, trimming inside the editor, auto clip and anything
+else that cuts a long video into shorts (see slice 18), multiple speakers, emoji or B-roll or auto-zoom, iOS
 background continuation, SRT import, and text behind the speaker (the draw list
 reserves `layer` for it; build no segmentation now).
 
@@ -397,36 +414,22 @@ properties rather than presets.
     the day and the clip's place in the batch.
 
 18. Auto clip: suggested shorts from a long video.
-    **Run end to end on an Android 16 emulator; not on the A54.** A long video
-    (5 minutes or more; the first hour in English, the first half hour in the
-    downloaded languages) is transcribed as an ordinary project with
-    `purpose: 'autoclip'`, and opens on its suggestions instead of the editor.
-    `autoclip.ts` cuts the transcript at sentence ends and long pauses, joins
-    whole units into 20–60 s windows, scores them with `ClipScorer` — hook
-    phrase or question in the first three seconds, speech density, repeated
-    keywords, a clean ending, and a penalty for intro and outro — and takes the
-    ten best that do not overlap. The top five are preselected. Each can be
-    played (the preview loops the range), moved on a timeline or a word at a
-    time, stripped of dead air, removed, or joined by one the user sets.
-    A chosen clip is a batch job of kind `cut`: the burn-in module now takes
-    `segments` in the plan and renders only those stretches of the source,
-    laid end to end, audio copied rather than re-encoded; that cut becomes the
-    source video of a new, ordinary project whose words and envelope are the
-    long video's moved onto the cut's timeline; and that project is rendered
-    like any other. Two passes through the encoder, at the same settings.
-    On the emulator, a 7:09 English test episode written with four planted
-    moments: transcribed in 385 s, the four moments came back as the top four
-    (89, 86, 67, 55), the intro and outro did not. A 48 s suggestion with Remove
-    dead air came out 38.26 s, the longest silence left in it 340 ms, audio and
-    video within 21 ms of each other.
-    **Dead air could not be found from the word timings at all.** whisper's
-    timestamps stretch a sentence's last word across the pause after it
-    ("scratch." 9.9–10.7 s where the voice stopped at 10.1 s), so there is no
-    gap between words to cut. `quietStretches` reads the silence off the
-    envelope instead, and a word whose start drifted into a cut moves to where
-    the sound resumes rather than being dropped. **Neighbouring words share a
-    start time** (58 of 985 on the test episode), so the ‹ word › buttons step
-    by time, not by index.
+    **Built, run on an emulator, and taken out on 2026-10-02**, at Dennis's
+    call: the app is a captions app, and cutting shorts out of a podcast is a
+    second product. Gone with it: the suggestions screen, `autoclip.ts`,
+    `deadair.ts`, the batch job of kind `cut` and `buildCutPlan`, the
+    `purpose`, `sourceName` and `transcribeUntilMs` fields on a project, and
+    its line on the paywall and the listing. A `batch.json` written while it
+    existed is read with any cut in it marked failed, so it cannot hold a queue
+    open forever. Batch captions stay.
+    **The burn-in module still takes `segments`** in a plan and renders only
+    those stretches; nothing sends it. It was left alone because removing it
+    means re-verifying the encoder loop on the A54, and an optional field that
+    is never set costs nothing. Take it out the next time that file is open.
+    One thing it learned is worth keeping for whoever builds anything like it
+    again: **silence cannot be found from whisper's word timings**, which
+    stretch a sentence's last word across the pause after it. It has to be read
+    off the envelope. The code is in git history before this date.
 
 Every slice runs as a release build on the Galaxy A54 before it is called done.
 
@@ -434,15 +437,11 @@ Every slice runs as a release build on the Galaxy A54 before it is called done.
 
 Eight are left, and none of them can be closed from this machine.
 
-- **Batch and auto clip have never run on a phone**, and the numbers above are
-  an M3 emulator's. What the A54 has to answer: a batch of twenty — whether the
+- **Batch has never run on a phone**, and the numbers above are an M3
+  emulator's. What the A54 has to answer: a batch of twenty — whether the
   queue survives twenty clips' worth of heat and the system's patience with a
   foreground service, and whether it resumes cleanly after the app is swiped
-  away mid-clip; an hour of real podcast through auto clip — memory with 115 MB
-  of PCM in the JS heap, the time it takes, and whether the scorer's picks are
-  the ones a person would have picked, which text-to-speech with planted hooks
-  cannot say. Real speech has room tone, breaths and music under it, and
-  `quietDb` at −24 dB was chosen on silence that was truly silent.
+  away mid-clip.
 
 - **The four downloaded languages have never run on a phone.** The emulator
   proved the path — download, language, model, words, accents — and says
@@ -693,6 +692,16 @@ has to argue with that gap.
   keeping its last row on a fixed line. The layout holds the block on the canvas
   and does nothing else: the safe zone stays a warning drawn over the preview,
   because a caption is allowed to sit outside it and some of them should.
+- **Size is a number too, and words per line goes to eight.** `TextSize` is
+  the font size as a fraction of the canvas height, for the reason position
+  became one: S, M and L were three answers to a question that is different on
+  every clip. The sheet has a slider over `TEXT_SIZE_RANGE` (0.026–0.08) with
+  S, M and L as tick marks and one-tap chips, and a drag snaps onto them the way
+  the dial snaps onto bands. Projects and saved looks carrying the old letters
+  are read by `textSizeOf` in `resolveStyle`, not migrated. Words per line runs
+  1–8 (`WORDS_PER_LINE_RANGE`, was 1–5) on a − / + stepper, because eight
+  chips across a phone are each narrower than a finger. **Neither has been on a
+  device.**
 - **The position control is a picture of the frame, not a slider.** A tall
   rectangle at the video's own proportions with the safe zone dashed inside it
   and a bar where the captions are; tap or drag to put the bar anywhere. A
@@ -756,6 +765,25 @@ has to argue with that gap.
   rest. Its size has already told the viewer it is different, and a word that
   lost its colour the instant it was said would read as the emphasis switching
   off.
+- **The picker is in order of popularity, and the default is not first.**
+  `PRESET_ORDER` in `style.ts` puts Bold yellow, Karaoke fill and Box highlight
+  at the top — the Hormozi look and the two highlights around it, which every
+  tool ships a template or a default for — and Neon and Newsprint, which have
+  no market equivalent, at the bottom. No vendor publishes per-template usage,
+  so the order is proxies (defaults, Trending flags, named template families,
+  OpusClip's 13.5M-clip study) and the comment says which. Focus stays the
+  default and sits fifth: what most people pick and what survives footage
+  nobody has seen are different questions.
+- **A word plays once; the style sheet plays its line once and then loops
+  silently.** Every editing surface used to repeat its span with sound for as
+  long as it was open, and a word repeating while you typed its correction —
+  or a line repeating for as long as you browsed eighteen styles — was the
+  editor's most annoying behaviour. `loopSpan` has three modes now: `once` for
+  the word sheet (with a Play button to hear it again), `quiet` for the style
+  sheet, whose tiles need the video moving but whose user is looking, and
+  `repeat` for the timing and shift sheets, where hearing the boundary again
+  after every nudge is the tool. Invariant 4 still holds — the audio plays on
+  every surface — it just stops talking over you.
 - **Eight presets came from a competitor's catalogue and none of its pixels.**
   `references/` is footage this repository does not keep;
   `references/deep-research-report.md` is the same discipline applied to a published style
@@ -844,8 +872,8 @@ has to argue with that gap.
   nothing reads it for gating; the free-tier test asserts that 99 exports still
   do not block, so a counter cannot grow back by accident.
 - **Superseded in slice 15, kept for the reasoning:** the paywall now sells
-  Wordburn Pro, a subscription, and lists five things — the watermark, batch,
-  auto clip, the four downloaded languages and the dictionary cap — because
+  Wordburn Pro, a subscription, and lists four things — the watermark, batch,
+  the downloaded languages and the dictionary cap — because
   those are what it gates. What survives from below is the rule: every line on
   that screen is something the payment actually changes, and the goodwill line
   stays under the button, never on it.
@@ -1047,12 +1075,22 @@ has to argue with that gap.
   guarding with it reports "no mail app" on phones that have one. `openURL` inside
   a `try` is the check, and the fallback alert hands over the address itself: a
   dead button on the one screen asking for help is worse than no button.
-- **First launch asks for a style, once.** Welcome's Get started goes to
-  Settings → Default style in its onboarding form (`?onboarding=1`: Continue
-  instead of Back, Continue goes Home), because a look picked once is a look
-  nobody picks again clip after clip. Every new video starts in it, and a
-  batch — auto clip's cuts included — starts on it rather than on the last
-  saved look, so the default is the default everywhere.
+- **First launch asks for a language, then a style, once.** Welcome's Get
+  started goes to `/language`, then to Settings → Default style in its
+  onboarding form (`?onboarding=1`: Continue instead of Back, Continue goes
+  Home), because a choice made once is a choice nobody makes again clip after
+  clip. Every new video starts in both, and a batch starts on the default
+  style rather than the last saved look, so
+  the default is the default everywhere.
+  The language step preselects the phone's own language through `Intl` when it
+  is one of the nine (Android reports Indonesian as `in`), and draws the same
+  rows as Home's sheet, so "Pro" and "Download" are on the row before anything
+  is picked. A free user who picks a Pro language is offered Pro or English and
+  nothing is saved in between: a Home chip on a language that asks for money on
+  every pick is a nag, not a setting. Subscribing from there comes back to the
+  step (`from: 'onboarding'`), not Home, so the paid-for choice is not dropped.
+  A subscriber is offered the 874 MB download on the spot, and it runs while
+  they pick a style. **Not run anywhere**, emulator included.
 - **Processing moves while it works** (`src/ui/working.tsx`): a level meter
   beside the stage, a bar that eases forward with a light crossing it, lines
   that rise in with the newest word in the box highlight, and before the first
@@ -1101,8 +1139,7 @@ and because deleting it is how a free tier gets reset for testing. Play is the
 real record; this file is the app's memory of what Play last said.
 
 `events.jsonl`, beside them, is the event log: `paywall_shown`, `plan_selected`,
-`trial_started`, `subscribed`, `batch_started`, `autoclip_run`,
-`language_selected`, `export_done`, with counts and never content. It is never
+`trial_started`, `subscribed`, `batch_started`, `language_selected`, `export_done`, with counts and never content. It is never
 transmitted — there is no analytics SDK and the privacy policy still says
 nothing is collected — and it is trimmed to the newest 2000 lines.
 

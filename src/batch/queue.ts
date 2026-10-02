@@ -36,7 +36,6 @@ import * as service from '../native/foreground-service';
 import { adoptSource } from '../project/source';
 import { createProject, loadProject, saveProject } from '../project/store';
 import { makeThumbnail } from '../project/thumbnail';
-import { cutIntoProject } from './cut';
 import { loadBatch, saveBatch } from './store';
 
 /** Below this, a clip is not started: its copy, its audio and its export need room. */
@@ -166,7 +165,7 @@ async function loop(): Promise<void> {
 
 async function runJob(job: BatchJob): Promise<void> {
   try {
-    const project = job.source.kind === 'file' ? await transcribeFile(job) : await cutJob(job);
+    const project = await transcribeFile(job);
     if (!project) return;
     await render(job, project.id);
   } catch (error) {
@@ -181,7 +180,7 @@ async function runJob(job: BatchJob): Promise<void> {
 
 /** A clip from the gallery: its own project, transcribed like any other. */
 async function transcribeFile(job: BatchJob): Promise<ReturnType<typeof loadProject>> {
-  if (job.source.kind !== 'file' || !batch) return null;
+  if (!batch) return null;
 
   let project = job.projectId ? loadProject(job.projectId) : null;
   if (!project) {
@@ -215,31 +214,6 @@ async function transcribeFile(job: BatchJob): Promise<ReturnType<typeof loadProj
   }
 }
 
-/** One of auto clip's picks: cut out of the long video into a project of its own. */
-async function cutJob(job: BatchJob): Promise<ReturnType<typeof loadProject>> {
-  if (job.source.kind !== 'cut' || !batch) return null;
-  if (job.projectId) {
-    const existing = loadProject(job.projectId);
-    if (existing?.status === 'ready') return existing;
-  }
-
-  const source = loadProject(job.source.projectId);
-  if (!source) throw new Error('The long video this clip came from was deleted.');
-
-  move(job.id, { status: 'cutting', progress: 0 });
-  const project = await cutIntoProject(
-    source,
-    job.source.segments,
-    job.source.removedWordIds ?? [],
-    batch.styleId,
-    batch.styleOverrides,
-    (fraction) => move(job.id, { progress: fraction })
-  );
-  void makeThumbnail(project);
-  move(job.id, { projectId: project.id });
-  return project;
-}
-
 async function render(job: BatchJob, projectId: string): Promise<void> {
   const project = loadProject(projectId);
   if (!project || !measure || !batch) throw new Error('The project is gone.');
@@ -256,7 +230,7 @@ async function render(job: BatchJob, projectId: string): Promise<void> {
     resolution: '1080p',
     alsoSrt: false,
     reducedMotion: false,
-    kind: job.source.kind === 'cut' ? 'autoclip' : 'batch',
+    kind: 'batch',
     name,
     onProgress: (done) => move(job.id, { progress: done }),
   });

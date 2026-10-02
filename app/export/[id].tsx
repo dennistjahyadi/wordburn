@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { accentColor, projectStyle, type Project } from '../../src/domain';
 import {
+  canExport,
   canSaveToGallery,
   cancelExport,
   checkSpace,
@@ -174,11 +175,19 @@ export default function Export() {
         ) : null}
       </View>
 
-      <Label variant="label" tone="mute" style={styles.spec}>
-        {size ? `${size.width} × ${size.height}` : 'Reading the video'}
-        {info ? ` · ${Math.round(info.fps)} fps` : ''}
-        {tier.watermark ? ' · with a watermark' : ' · no watermark'}
-      </Label>
+      {canExport ? (
+        <Label variant="label" tone="mute" style={styles.spec}>
+          {size ? `${size.width} × ${size.height}` : 'Reading the video'}
+          {info ? ` · ${Math.round(info.fps)} fps` : ''}
+          {tier.watermark ? ' · with a watermark' : ' · no watermark'}
+        </Label>
+      ) : (
+        // iOS has no burn-in, so `info` never arrives and the button below
+        // stays disabled. Said here rather than left reading the video forever.
+        <Label variant="label" tone="mute" style={styles.spec}>
+          Exporting is not built for iPhone yet
+        </Label>
+      )}
 
       {rendering ? (
         <View style={styles.progress}>

@@ -3,14 +3,16 @@
  * and taking it off again.
  *
  * English is transcribed by the model in the APK and never touches this file.
- * Spanish, German, Dutch and Indonesian share one multilingual model that is too
- * big to ship — the APK has five megabytes of headroom under Play's 150 — so it
+ * Every other language shares one multilingual model that is too big to ship — the APK has five megabytes of headroom under Play's 150 — so it
  * is downloaded once, when somebody first picks one of those languages and says
- * yes to the size.
+ * yes to the size. One file is not a shortcut: whisper's multilingual weights
+ * are one set for every language it knows, so a "Spanish model" would be this
+ * same 874 MB again.
  *
  * Which model is `reports/Multilingual Whisper model for Android.md`'s answer:
  * large-v3-turbo at q8_0, the only file a phone can plausibly run that is under
- * about 6.5% word error on read speech in all four languages. Its speed on the
+ * about 6.5% word error on read speech in the four languages it was chosen for.
+ * The four added since were chosen against it — see `src/domain/language.ts`. Its speed on the
  * A54 is the open question, which is why the whisper.rn patch builds a dotprod
  * variant for it to run on.
  *
@@ -190,7 +192,7 @@ export function downloadModel(model: DownloadedModel = MULTILINGUAL_MODEL): Prom
 
   const abort = new AbortController();
   const promise = (async () => {
-    ForegroundService.start('Downloading the language model', 0).catch(() => undefined);
+    ForegroundService.start('Downloading languages', 0).catch(() => undefined);
     const ranges = segmentRanges(model.bytes);
     let lastPercent = -1;
 
@@ -344,7 +346,7 @@ export function deleteModel(model: DownloadedModel = MULTILINGUAL_MODEL): void {
 }
 
 export const NOT_ENOUGH_MEMORY =
-  'This phone does not have enough memory for Spanish, German, Dutch and Indonesian. English still works.';
+  'This phone does not have enough memory for the languages beyond English. English still works.';
 
 function describeDownloadFailure(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);

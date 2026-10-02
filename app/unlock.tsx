@@ -346,6 +346,10 @@ function Active({
 }) {
   const insets = useSafeAreaInsets();
   const toExport = from === 'export' && !!id;
+  // Subscribed in the middle of first launch: back to the language step, which
+  // is still on the stack under this and still holds the language they paid
+  // for. Home would skip the rest of onboarding and drop that choice.
+  const toOnboarding = from === 'onboarding';
 
   const detail =
     status.kind === 'lifetime'
@@ -380,6 +384,8 @@ function Active({
               accent={DEFAULT_ACCENT}
               onPress={() => router.replace({ pathname: '/export/[id]', params: { id: String(id) } })}
             />
+          ) : toOnboarding ? (
+            <PrimaryButton title={pro.active.continue} accent={DEFAULT_ACCENT} onPress={onLeave} />
           ) : (
             <PrimaryButton title={pro.active.home} accent={DEFAULT_ACCENT} onPress={() => router.replace('/')} />
           )}
