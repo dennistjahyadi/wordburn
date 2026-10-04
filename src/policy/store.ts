@@ -28,22 +28,43 @@ import {
   finishTransaction,
   getAvailablePurchases,
   initConnection,
+  isEligibleForIntroOfferIOS,
   purchaseErrorListener,
   purchaseUpdatedListener,
   requestPurchase,
   restorePurchases,
   type ProductSubscription,
+  type ProductSubscriptionIOS,
   type Purchase,
 } from 'expo-iap';
 
-import { plansFromOffers, type OfferInput, type Plan } from './plans';
-import { isPlanId, type PlanId, type StoreAnswer } from './pro';
+import { plansFromAppStore, plansFromOffers, type OfferInput, type Plan } from './plans';
+import { isPlanId, PLAN_IDS, type PlanId, type StoreAnswer } from './pro';
 
 /**
- * The subscription, with three base plans: `weekly`, `monthly` and `yearly`.
- * The free trial is an offer on `yearly`, configured in Play Console.
+ * The subscription on Play, with three base plans: `weekly`, `monthly` and
+ * `yearly`. The free trial is an offer on `yearly`, configured in Play Console.
  */
 export const PRO_PRODUCT_ID = 'wordburn_pro';
+
+/**
+ * The same subscription on the App Store, which has no base plans: each plan is
+ * a product of its own, and the three sit in one subscription group so that
+ * buying one replaces another. The group is called "Wordburn Pro" in App Store
+ * Connect and the trial is an introductory offer on the yearly product there.
+ * `currentPlanId` on an iOS purchase is the product id, so the plan is the
+ * id's last word.
+ */
+export const PRO_PRODUCT_IDS_IOS: Record<PlanId, string> = {
+  weekly: 'wordburn_pro_weekly',
+  monthly: 'wordburn_pro_monthly',
+  yearly: 'wordburn_pro_yearly',
+};
+
+/** Whether a purchase is the subscription, on either store. */
+function isProProduct(productId: string): boolean {
+  return productId === PRO_PRODUCT_ID || Object.values(PRO_PRODUCT_IDS_IOS).includes(productId);
+}
 
 /**
  * The one-time unlock Wordburn sold before it sold subscriptions.
@@ -115,16 +136,66 @@ export async function loadPlans(): Promise<PlansLookup> {
   if (!(await connectToStore())) return { kind: 'offline' };
 
   try {
-    const products = (await fetchProducts({ skus: [PRO_PRODUCT_ID], type: 'subs' })) ?? [];
-    const product = products.find((candidate) => candidate.id === PRO_PRODUCT_ID) as
-      | ProductSubscription
-      | undefined;
-
-    const plans = plansFromOffers(offersOf(product)).filter((plan) => plan.price.trim() !== '');
+    const plans = (Platform.OS === 'ios' ? await appStorePlans() : await playPlans()).filter(
+      (plan) => plan.price.trim() !== ''
+    );
     return plans.length > 0 ? { kind: 'priced', plans } : { kind: 'unavailable' };
   } catch {
     return { kind: 'offline' };
   }
+}
+
+async function playPlans(): Promise<Plan[]> {
+  const products = (await fetchProducts({ skus: [PRO_PRODUCT_ID], type: 'subs' })) ?? [];
+  const product = products.find((candidate) => candidate.id === PRO_PRODUCT_ID) as
+    | ProductSubscription
+    | undefined;
+  return plansFromOffers(offersOf(product));
+}
+
+/**
+ * The three products, and whether this account may still have the trial.
+ *
+ * StoreKit lists a product's introductory offer for everybody; eligibility is a
+ * separate question about the subscription group, and a trial shown to somebody
+ * who has used one would be a price that changes on the purchase sheet. When
+ * the question cannot be answered the trial is not shown, which errs in the
+ * direction the sheet cannot contradict.
+ */
+async function appStorePlans(): Promise<Plan[]> {
+  const products = ((await fetchProducts({ skus: Object.values(PRO_PRODUCT_IDS_IOS), type: 'subs' })) ??
+    []) as ProductSubscription[];
+  const catalogue = products.filter(
+    (product): product is ProductSubscriptionIOS => product.platform === 'ios'
+  );
+
+  const groupId = catalogue.find((product) => product.subscriptionGroupIdIOS)?.subscriptionGroupIdIOS;
+  const eligible = groupId ? await isEligibleForIntroOfferIOS(groupId).catch(() => false) : false;
+
+  return plansFromAppStore(
+    catalogue.map((product) => ({
+      id: product.id,
+      displayPrice: product.displayPrice,
+      price: product.price ?? null,
+      currency: product.currency,
+      periodUnit: product.subscriptionPeriodUnitIOS ?? null,
+      periodNumber: numberOrNull(product.subscriptionPeriodNumberIOS),
+      intro:
+        product.introductoryPricePaymentModeIOS && product.introductoryPricePaymentModeIOS !== 'empty'
+          ? {
+              paymentMode: product.introductoryPricePaymentModeIOS,
+              periodUnit: product.introductoryPriceSubscriptionPeriodIOS ?? null,
+              periodNumber: numberOrNull(product.introductoryPriceNumberOfPeriodsIOS),
+            }
+          : null,
+    })),
+    eligible
+  );
+}
+
+function numberOrNull(value: string | null | undefined): number | null {
+  const parsed = value == null ? NaN : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 /** Play's offers, in the shape `plans.ts` reads. Only Android has them. */
@@ -181,7 +252,7 @@ export async function subscribe(plan: Plan): Promise<PurchaseOutcome> {
     };
 
     const updates = purchaseUpdatedListener((purchase) => {
-      if (purchase.productId !== PRO_PRODUCT_ID) return;
+      if (!isProProduct(purchase.productId)) return;
 
       if (purchase.purchaseState === 'pending') {
         done({ kind: 'pending' });
@@ -215,7 +286,8 @@ export async function subscribe(plan: Plan): Promise<PurchaseOutcome> {
           skus: [PRO_PRODUCT_ID],
           subscriptionOffers: [{ sku: PRO_PRODUCT_ID, offerToken: plan.offerToken }],
         },
-        apple: { sku: PRO_PRODUCT_ID },
+        // On iOS the plan is the product, and its id rode here as the token.
+        apple: { sku: plan.offerToken },
       },
     }).catch((error: unknown) => {
       done({ kind: 'failed', message: describe(error) });
@@ -237,13 +309,16 @@ export async function subscribe(plan: Plan): Promise<PurchaseOutcome> {
  * purchase that completed while the app was being killed, which Play is
  * counting down to refunding.
  */
-export async function askStore(): Promise<StoreAnswer | null> {
+export async function askStore(options: { restore?: boolean } = {}): Promise<StoreAnswer | null> {
   if (!(await connectToStore())) return null;
 
   try {
-    // iOS needs a sync before the query to see a purchase made on another device.
-    // On Android this is the query, so calling both is one round trip either way.
-    if (Platform.OS === 'ios') await restorePurchases();
+    // On iOS the quiet query already covers every device on the Apple Account,
+    // and the sync behind `restorePurchases` puts a "Sign in to Apple Account"
+    // sheet over whatever screen is up. So it runs only when the user tapped
+    // Restore, which is where Apple says it belongs. On Android it is the same
+    // query as below, so it costs nothing either way.
+    if (options.restore && Platform.OS === 'ios') await restorePurchases();
 
     const owned = await getAvailablePurchases({ includeSuspendedAndroid: true });
 
@@ -255,8 +330,7 @@ export async function askStore(): Promise<StoreAnswer | null> {
 
     const subscription = pickSubscription(
       owned.filter(
-        (purchase) =>
-          purchase.productId === PRO_PRODUCT_ID && purchase.purchaseState === 'purchased'
+        (purchase) => isProProduct(purchase.productId) && purchase.purchaseState === 'purchased'
       )
     );
     if (subscription && !isSuspended(subscription)) void acknowledge(subscription);
@@ -286,7 +360,9 @@ function isSuspended(purchase: Purchase): boolean {
 }
 
 function planOf(purchase: Purchase): PlanId | null {
-  return isPlanId(purchase.currentPlanId) ? purchase.currentPlanId : null;
+  if (isPlanId(purchase.currentPlanId)) return purchase.currentPlanId;
+  // iOS reports the product id here, and the product is the plan.
+  return PLAN_IDS.find((id) => PRO_PRODUCT_IDS_IOS[id] === purchase.currentPlanId) ?? null;
 }
 
 /**

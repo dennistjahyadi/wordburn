@@ -1,7 +1,8 @@
 /**
  * What the free tier allows.
  *
- * Pure TypeScript, no platform imports.
+ * Pure TypeScript, and one platform read: the name of the store a payment on
+ * hold is fixed in, which is the App Store on iOS and Google Play elsewhere.
  *
  * Invariant 5: whatever the limit is, the user sees it on Home before they pick
  * a video, and the Export screen never introduces a new wall. Discovering a
@@ -12,6 +13,8 @@
  * Who escapes it is `pro.ts`'s question, not this file's: a lifetime purchase or
  * a live subscription, and nothing else.
  */
+import { Platform } from 'react-native';
+
 import { isPro, proStatus, type SubscriptionRecord } from './pro';
 
 export type FreeTierPolicy =
@@ -110,7 +113,7 @@ export function freeTierStatus(
   // screen already reads, and the free tier applies until they do.
   if (status.kind === 'suspended') {
     return {
-      line: 'Pro is on hold: update your payment in Google Play',
+      line: `Pro is on hold: update your payment in ${Platform.OS === 'ios' ? 'the App Store' : 'Google Play'}`,
       blocked: false,
       captionBlocked,
       watermark: true,

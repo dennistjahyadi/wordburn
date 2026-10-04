@@ -31,6 +31,28 @@ export function sourceName(pickedUri: string): string {
   return `source.${(match?.[1] ?? DEFAULT_EXTENSION).toLowerCase()}`;
 }
 
+/**
+ * The project's own copy, found again from wherever the project directory is now.
+ *
+ * `sourceUri` is written as an absolute `file://` URI, and on iOS an absolute
+ * path into the app's container dies with every update: the system moves the
+ * whole data directory to a new UUID and leaves the files inside it exactly
+ * where they were, relative to each other. After the first update every
+ * project on the phone opened on "Can't find this video" with its video
+ * sitting one directory rename away. So a URI that names a file in the
+ * project's own directory is rebuilt against where that directory is today,
+ * and only that file name is trusted. Anything else — a media URI, a file this
+ * app never copied — is returned as it was. On Android the path never moves
+ * and this is the identity.
+ */
+export function rehomedSourceUri(sourceUri: string, id: string, directoryUri: string): string {
+  if (!sourceUri.startsWith('file://')) return sourceUri;
+  const match = new RegExp(`/projects/${id}/([^/?#]+)$`).exec(sourceUri.split('?')[0]);
+  if (!match) return sourceUri;
+  const base = directoryUri.endsWith('/') ? directoryUri : `${directoryUri}/`;
+  return `${base}${match[1]}`;
+}
+
 export function sourceFiles(id: string): File[] {
   return new Directory(projectDirectory(id))
     .list()

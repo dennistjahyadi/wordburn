@@ -1,7 +1,13 @@
 {
   "platforms": [
+    "apple",
     "android"
   ],
+  "apple": {
+    "modules": [
+      "BurnInModule"
+    ]
+  },
   "android": {
     "modules": [
       "expo.modules.burnin.BurnInModule"

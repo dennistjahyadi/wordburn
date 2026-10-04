@@ -10,6 +10,7 @@
  */
 import { Directory, File, Paths } from 'expo-file-system';
 import { Album, Asset, getPermissionsAsync, requestPermissionsAsync, type GranularPermission, type PermissionResponse } from 'expo-media-library';
+import { Platform } from 'react-native';
 
 import { track } from '../analytics/events';
 import BurnIn, { type SavedFile, type VideoInfo } from '../../modules/burn-in';
@@ -243,11 +244,22 @@ export function cancelExport(): void {
  * The album is a courtesy and failing to make one is not worth losing an export
  * over: the asset is already in the gallery by then, and a video the user cannot
  * find in an album is better than a video they do not have.
+ *
+ * On iOS there is no album at all. Adding a file is covered by the add-only
+ * permission this app asks for; finding or making an album needs the whole
+ * library, read and write, which is the sheet the Android side was narrowed
+ * to avoid. The video lands in Recents, which is where an iPhone user looks.
  */
 async function publish(path: string, name: string): Promise<{ name: string; byteLength: number }> {
   // A URI, not a bare path: the library parses what it is given, and a string
   // with no scheme is not a file to everything that touches it on the way.
   const uri = `file://${path}`;
+
+  if (Platform.OS === 'ios') {
+    await Asset.create(uri);
+    return { name, byteLength: new File(uri).size ?? 0 };
+  }
+
   const album = await Album.get(ALBUM);
 
   if (album) await Asset.create(uri, album);

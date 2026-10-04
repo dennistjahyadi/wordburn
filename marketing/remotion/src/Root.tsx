@@ -16,10 +16,21 @@ import { JustCaptionsAd, TOTAL_FRAMES as JUSTCAPTIONS_FRAMES } from './justcapti
 import { NoCreditsAd, TOTAL_FRAMES as NOCREDITS_FRAMES } from './nocredits/Ad';
 import { NoInternetAd, TOTAL_FRAMES as NOINTERNET_FRAMES } from './nointernet/Ad';
 import { PayOnceAd, TOTAL_FRAMES as PAYONCE_FRAMES } from './payonce/Ad';
+import { DrawMyLifeAd, TOTAL_FRAMES as DRAWMYLIFE_FRAMES } from './drawmylife/Ad';
 import { FORMAT } from './brand';
 
 export const RemotionRoot: React.FC = () => (
   <>
+    {/* Video 04 — draw my life: fourteen doodles drawn on to Dennis's voice. */}
+    <Composition id="drawmylife" component={DrawMyLifeAd} durationInFrames={DRAWMYLIFE_FRAMES} {...FORMAT} />
+    <Composition
+      id="drawmylife-nocaptions"
+      component={DrawMyLifeAd}
+      durationInFrames={DRAWMYLIFE_FRAMES}
+      defaultProps={{ captions: false }}
+      {...FORMAT}
+    />
+
     <Composition
       id="offline"
       component={Offline}

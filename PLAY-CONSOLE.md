@@ -544,22 +544,36 @@ exports over an app that has no counter is the same violation the full
 description was fixed for in section 1. Whatever ships here has to agree with
 `src/policy/free-tier.ts`.
 
-### Pro release — 332/500
+### Pro release — 497/500
 
 ```
 Wordburn Pro is here.
 
-Batch captions: queue up to 20 clips, pick one language and one style, and let your phone work through them in the background.
+Auto captions and subtitles for videos, word by word, in nine languages: English, Spanish, Portuguese, Indonesian, German, French, Italian, Dutch and Polish.
 
-Now in Dutch, French, German, Indonesian, Italian, Polish, Portuguese and Spanish, as well as English.
+18 animated caption styles, from karaoke fill to word highlight. Edit any word without moving its timing, then burn the captions in or save an .srt.
 
-Single clips still caption and export with a small watermark. Pro removes it.
+Batch captions with Pro: queue up to 20 clips, one language, one style.
+
+Your first 3 videos are free, with a small watermark. Pro lifts the limit and the watermark.
 ```
 
-The previous first-release notes promised "one purchase removes it, forever" and
-"English only for now", both of which this release ends. Nothing has been on a
-production track yet, so if this is the first release anyone sees, drop the
-first line and it reads as a first release.
+It carries the listing's keywords — "auto captions", "subtitles", "word by
+word", "caption styles", "karaoke", "batch captions", ".srt" — but **not for
+ranking**. No source says Play indexes "What's new", and App Radar lists it as
+not indexed (`reports/Wordburn ASO keyword research.md`). They are there because
+this text sits on the listing next to the title and short description, and a
+reader who searched "word by word captions" should find the same words here.
+The words that rank go in the title, the short description and the first 300
+characters of the full description.
+
+The free-tier line follows slice 19: three videos, watermarked, then Pro.
+The older draft here said single clips export freely with a mark, which was the
+tier before that.
+
+The app has been live since 2026-09-22 (`com.wordburn.app`, 1.0.x), so this is
+an update and not a first release. The live listing still says "Offline,
+on-device, pay once" and "nine caption styles"; replace it in the same release.
 
 ### After the first release
 

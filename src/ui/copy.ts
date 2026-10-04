@@ -11,7 +11,12 @@
  * app as a whole, "offline", or "pay once".
  */
 
+import { Platform } from 'react-native';
+
 import { DOWNLOADED_LANGUAGES } from '../domain';
+
+/** Where the subscription lives, which is where the user manages it. */
+const STORE = Platform.OS === 'ios' ? 'the App Store' : 'Google Play';
 
 /**
  * The downloaded languages, said from the list rather than typed out: the copy
@@ -59,12 +64,12 @@ export const pro = {
   /**
    * The terms under the button. Play's subscription policy wants the price, the
    * period, that it renews and how to cancel, all in view before the tap — and
-   * for a trial, when the first charge happens.
+   * for a trial, when the first charge happens. The App Store wants the same.
    */
   fineprint: (price: string, period: string, trialDays: number | null) =>
     trialDays
-      ? `Free for ${trialDays} days, then ${price} ${period}. Renews automatically. Cancel anytime in Google Play at least a day before the trial ends and you will not be charged.`
-      : `${price} ${period}. Renews automatically until you cancel, which you can do anytime in Google Play.`,
+      ? `Free for ${trialDays} days, then ${price} ${period}. Renews automatically. Cancel anytime in ${STORE} at least a day before the trial ends and you will not be charged.`
+      : `${price} ${period}. Renews automatically until you cancel, which you can do anytime in ${STORE}.`,
   restore: 'Restore purchases',
   terms: 'Terms',
   privacy: 'Privacy',
@@ -77,9 +82,9 @@ export const pro = {
   active: {
     title: "You're Pro",
     lifetime: 'Every Pro feature is on for this account.',
-    renewing: (plan: string) => `${plan} plan. Manage or cancel it in Google Play.`,
+    renewing: (plan: string) => `${plan} plan. Manage or cancel it in ${STORE}.`,
     ending: (plan: string) => `${plan} plan, cancelled. Pro stays on until the end of the period you paid for.`,
-    unverified: 'Google Play could not be reached, so this is what it said last time.',
+    unverified: `${STORE} could not be reached, so this is what it said last time.`,
     manage: 'Manage subscription',
     home: 'Home',
     backToExport: 'Back to export',
@@ -88,8 +93,8 @@ export const pro = {
   },
   hold: {
     title: 'Pro is on hold',
-    body: 'Google Play could not take the last payment, or the plan is paused. Sort it out in Google Play and Pro comes straight back.',
-    fix: 'Open Google Play',
+    body: `${STORE} could not take the last payment, or the plan is paused. Sort it out in ${STORE} and Pro comes straight back.`,
+    fix: `Open ${STORE}`,
   },
   /** The link under every free-tier line. */
   upsell: 'Go Pro',

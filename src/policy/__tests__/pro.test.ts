@@ -141,7 +141,8 @@ describe('the free tier, read through Pro', () => {
   it('keeps it for somebody on hold, and says how to fix it rather than selling to them', () => {
     const status = freeTierStatus(live({ suspended: true }), now);
     expect(status).toMatchObject({ watermark: true, blocked: false, onHold: true });
-    expect(status.line).toMatch(/Google Play/);
+    // jest-expo runs as iOS; the phone names its own store.
+    expect(status.line).toMatch(/Google Play|the App Store/);
   });
 
   it('puts it back when a subscription has ended', () => {

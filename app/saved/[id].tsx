@@ -8,7 +8,7 @@
 import * as Sharing from 'expo-sharing';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { accentColor, projectStyle } from '../../src/domain';
@@ -82,7 +82,7 @@ export default function Saved() {
         </Label>
         {srt ? (
           <Label variant="micro" tone="mute" style={styles.centre}>
-            {srt} is in your Downloads
+            {srt} is in {Platform.OS === 'ios' ? 'Files, under On My iPhone › Wordburn' : 'your Downloads'}
           </Label>
         ) : null}
 

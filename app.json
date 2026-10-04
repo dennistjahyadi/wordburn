@@ -8,8 +8,17 @@
     "icon": "./assets/icon.png",
     "newArchEnabled": true,
     "ios": {
+      "appleTeamId": "TKCS3G7DZP",
       "supportsTablet": false,
-      "bundleIdentifier": "com.wordburn.app"
+      "bundleIdentifier": "com.wordburn.app",
+      "buildNumber": "107",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "UIFileSharingEnabled": true,
+        "LSSupportsOpeningDocumentsInPlace": true
+      }
     },
     "android": {
       "versionCode": 107,
@@ -42,6 +51,9 @@
       [
         "expo-build-properties",
         {
+          "ios": {
+            "enableSceneSupport": true
+          },
           "android": {
             "minSdkVersion": 29,
             "buildArchs": [

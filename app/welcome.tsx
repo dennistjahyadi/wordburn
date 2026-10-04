@@ -39,7 +39,7 @@ export default function Welcome() {
 
     // Seen or not, this person has now been through Welcome. Restoring is a
     // stronger signal than "Get started": they have used this app before.
-    const synced = await syncEntitlement();
+    const synced = await syncEntitlement({ restore: true });
     setRestoring(false);
 
     if (synced && isPro(proStatus(synced))) {

@@ -74,10 +74,13 @@ export function markSubscribed(plan: PlanId | null): Entitlement {
  * was: a tunnel, a Play Services update and a refund look identical from here.
  *
  * Returns the entitlement only when Play answered, so a caller can redraw on an
- * answer rather than on every launch.
+ * answer rather than on every launch. `restore` says the user asked: that is
+ * the one call allowed to put the App Store's sign-in sheet on screen.
  */
-export async function syncEntitlement(): Promise<Entitlement | null> {
-  const answer = await askStore();
+export async function syncEntitlement(
+  options: { restore?: boolean } = {}
+): Promise<Entitlement | null> {
+  const answer = await askStore(options);
   if (!answer) return null;
 
   const next = applyStoreAnswer(loadStoredEntitlement(), answer);

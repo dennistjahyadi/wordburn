@@ -4,6 +4,7 @@ import {
   fractionDigitsOf,
   isoDays,
   monthlyMicros,
+  plansFromAppStore,
   plansFromOffers,
   yearlySaving,
   type OfferInput,
@@ -134,5 +135,55 @@ describe('ISO periods', () => {
     expect(isoDays('P1M')).toBe(30);
     expect(isoDays('P1Y')).toBe(365);
     expect(isoDays('3 days')).toBeNull();
+  });
+});
+
+describe('plansFromAppStore', () => {
+  const product = (
+    id: string,
+    displayPrice: string,
+    price: number,
+    periodUnit: 'week' | 'month' | 'year',
+    intro: { paymentMode: 'free-trial' | 'pay-up-front'; periodUnit: 'day' | 'week'; periodNumber: number } | null = null
+  ) => ({ id, displayPrice, price, currency: 'USD', periodUnit, periodNumber: 1, intro });
+
+  const catalogue = [
+    product('wordburn_pro_yearly', '$39.99', 39.99, 'year', { paymentMode: 'free-trial', periodUnit: 'week', periodNumber: 1 }),
+    product('wordburn_pro_weekly', '$4.99', 4.99, 'week'),
+    product('wordburn_pro_monthly', '$9.99', 9.99, 'month'),
+  ];
+
+  it('reads the plan off the product id and keeps the App Store\'s own price string', () => {
+    const plans = plansFromAppStore(catalogue, true);
+    expect(plans.map((plan) => plan.id)).toEqual(['weekly', 'monthly', 'yearly']);
+    expect(plans[2]).toMatchObject({
+      offerToken: 'wordburn_pro_yearly',
+      price: '$39.99',
+      priceMicros: 39_990_000,
+      currency: 'USD',
+      period: 'year',
+      trialDays: 7,
+    });
+    expect(plans[0].trialDays).toBeNull();
+  });
+
+  it('withholds the trial when the account is no longer eligible', () => {
+    const yearly = plansFromAppStore(catalogue, false).find((plan) => plan.id === 'yearly');
+    expect(yearly?.trialDays).toBeNull();
+  });
+
+  it('does not call a paid intro a trial', () => {
+    const paid = [product('wordburn_pro_monthly', '$9.99', 9.99, 'month', { paymentMode: 'pay-up-front', periodUnit: 'week', periodNumber: 1 })];
+    expect(plansFromAppStore(paid, true)[0].trialDays).toBeNull();
+  });
+
+  it('drops a product it cannot name or period', () => {
+    const odd = [
+      { ...product('wordburn_pro_lifetime', '$99', 99, 'year'), periodUnit: null },
+      product('something_else_yearly', '$1', 1, 'year'),
+    ];
+    expect(plansFromAppStore(odd, true)).toEqual([
+      expect.objectContaining({ id: 'yearly', offerToken: 'something_else_yearly' }),
+    ]);
   });
 });

@@ -95,6 +95,9 @@ node -e '
   const before = text;
   text = text.replace(/("version"\s*:\s*")[^"]*(")/, `$1${version}$2`);
   text = text.replace(/("versionCode"\s*:\s*)\d+/, `$1${code}`);
+  // The App Store wants the same thing under another name. One number, two
+  // keys, so a build that goes to both stores carries one identity.
+  text = text.replace(/("buildNumber"\s*:\s*")\d+(")/, `$1${code}$2`);
 
   if (text === before) {
     console.error("Nothing in app.json matched. Has its shape changed?");
@@ -110,7 +113,7 @@ version_read
   || fail "app.json was edited but now reads $VERSION ($VERSION_CODE), not $TARGET_VERSION ($TARGET_CODE)."
 
 step "versionCode $((TARGET_CODE - 1)) -> $TARGET_CODE   (version $VERSION)"
-echo "    app.json updated. android/ picks it up on the next build."
+echo "    app.json updated. android/ and ios/ pick it up on the next build."
 echo
 echo "    Next:  ./aab.sh        the bundle for Play"
 echo "           ./run.sh        a release APK on the phone"

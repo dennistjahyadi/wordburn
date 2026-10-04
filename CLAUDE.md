@@ -16,6 +16,16 @@ device and `scripts/build-aab.sh` builds the bundle for Play. Cloud builds would
 have to be taught to fetch the 82 MB of models, which are not in git, so the
 local build stays until there is a reason to move.
 
+**iOS builds are `scripts/ios-sim.sh`**, since 2026-10-03, and they have only
+ever gone to the simulator: nobody here owns an iPhone. The script generates
+`ios/`, installs the pods, builds Release and installs it on the booted
+simulator. It needs Xcode 27 with the iOS 27 runtime, and
+`ios.enableSceneSupport` in `app.json`, because the iOS 27 SDK refuses to
+launch an app on the old application life cycle and Expo SDK 57 only adopts
+the scene one when asked (57.0.23+). CocoaPods on this Mac is a user gem run
+by Homebrew's own Ruby, for reasons in the script's header; a Mac with a
+working `pod` needs none of that.
+
 **Release builds go through R8**, which no bundle before this one did.
 `enableMinifyInReleaseBuilds` and
 `enableShrinkResourcesInReleaseBuilds` sit in `app.json` beside the rest of the
@@ -449,7 +459,42 @@ properties rather than presets.
     still say languages** until somebody edits them there; `PLAY-CONSOLE.md`
     has the new text.
 
+19. iOS, on the simulator.
+    **Built and run end to end on an iPhone 17 simulator (iOS 27), Release
+    build; never on an iPhone.** Welcome, the language and style steps, Home,
+    the photo picker, a 0:53 clip transcribed with `base.en` read out of the
+    app bundle (the Swift audio module's first run), the Skia overlay, every
+    sheet, Export, a 1080 × 1920 render through a **new Swift burn-in**, and
+    the file in Photos with its `.srt` in Files. `store/ios-shots/` is 42
+    screenshots of all of it, taken for the ads.
+    The burn-in is `modules/burn-in/ios`: AVFoundation reads and writes, Core
+    Image composites on the GPU, Core Graphics and Core Text paint the same
+    draw list the Kotlin painter paints. Measured against the preview on the
+    exported file: the highlight pill within 2–5 px of 1080, every vertical
+    edge within 1 px, the watermark badge within 1.5 px, a Neon glow's halo
+    15/17 px on both renderers, audio byte-identical to the source. The word
+    sits 11 px further left than the preview on a 1080 frame, which is the
+    hinted-advance rounding the Export section documents, in the plan and not
+    the painter.
+    Four things iOS taught, each in "Things iOS taught us": the scene life
+    cycle, the data directory that moves on every update (a real bug, fixed
+    in `loadProject`), the album that needs the whole photo library, and the
+    App Store sign-in sheet behind `restorePurchases`.
+    **What it still is not:** an App Store build. The membership went active
+    on 2026-10-03; what is left is in `APP-STORE.md`, in order: the team id in
+    `app.json`, an API key or a signed-in Xcode, the app record, and the three
+    subscription products. `store.ts` now has the iOS side — `wordburn_pro_weekly`,
+    `_monthly` and `_yearly` in one group, read through `plansFromAppStore` —
+    and `scripts/build-ipa.sh` archives, verifies and uploads, but neither has
+    run against a real App Store Connect yet, and the paywall on the simulator
+    still reads "The App Store is not offering Wordburn Pro to your account
+    yet" because there is nothing to offer. Speed, heat and memory are an
+    M-series Mac's, not a phone's.
+    The simulator was driven by an XCUITest "driver" in the scratchpad, since
+    nothing on this Mac can tap a simulator; it is not in the repository.
+
 Every slice runs as a release build on the Galaxy A54 before it is called done.
+iOS has no such device, so its rule is the simulator in a Release build.
 
 ## Known issues
 
@@ -577,9 +622,19 @@ canvas beat the four the old grid drew in four.
   above all `isSuspendedAndroid` and `currentPlanId`. `PLAY-CONSOLE.md` section
   9 has the subscription field by field and the licence-testing route, where
   Play runs a year in thirty minutes.
-- **iOS has never been built.** Not once, in any slice. Nothing is known about
-  the Skia overlay, the fonts, the player or the pause-on-background rule there,
-  and there is no iOS burn-in at all.
+- **iOS has never run on an iPhone.** Slice 19 built it and ran everything on
+  a simulator, which says nothing about speed, heat, memory or the encoder on
+  real hardware. The membership is active; `APP-STORE.md` lists what is left
+  on Apple's side (team id, API key, app record, the three subscription
+  products) and `build-ipa.sh` is the upload, unrun. Nobody has bought from
+  the real App Store: the StoreKit path in `store.ts` has run only against
+  `store/Wordburn.storekit`, Apple's local test store — on 2026-10-03, on the
+  simulator, Release build 1.0.7 (107): the paywall priced all three plans
+  ($4.99 / $9.99 / $39.99, "Save 63%", the 7-day trial on yearly), Start
+  trial made the account Pro (`entitlement.json` reads yearly, renewing), and
+  the next export came out with no watermark. App Store Connect's own
+  products, a sandbox account and a restore on a second device are unrun. TestFlight testers would be
+  the way to get a device run without buying a phone.
 - **TikTok has never received a share.** Slice 10 took a finished export into
   Instagram's Reels composer, as far as its account picker, which is where a
   machine should stop inside somebody's real account. TikTok proper is not
@@ -850,8 +905,21 @@ has to argue with that gap.
   because a subtitle is not media and no media library will take one.
 - Permission is asked for before the render rather than after: a sheet at the end
   of a minute of encoding is an export that failed at the last step.
-- The burn-in is Android only. iOS has never been built in any slice, and a Swift
-  implementation nobody can run is a file that rots rather than a feature.
+- **The burn-in is two implementations of one plan.** The Kotlin one in
+  `modules/burn-in/android` and, since slice 19, a Swift one in
+  `modules/burn-in/ios`, written once the simulator could run it — this file
+  used to say a Swift implementation nobody can run is a file that rots, and
+  that was the reason not to write it blind. It reads the same JSON, draws in
+  the same order, and decides nothing. Where the two APIs differ it says so in
+  the Swift: glyphs are placed one at a time from their advances rather than
+  through a `CTLine`, because Skia's `drawText` shapes nothing and a kerned line
+  would be narrower than the preview; a shadow-only pass does not exist in Core
+  Graphics, so the shape is drawn a canvas-width off the bitmap with the shadow
+  offset pushed back by the same amount; and the plan's sigma is doubled on the
+  way into `setShadow`, which was measured rather than assumed (a Neon glow's
+  halo came out 15/17 px on both renderers). On iOS the file lands in Photos
+  with no album and the `.srt` in Files under On My iPhone › Wordburn; see
+  "Things iOS taught us".
 - The custom colour is a hue strip and not a full picker: a washed-out caption is
   an unreadable one, so saturation and lightness are fixed and the swatches carry
   white. Dragging on it changes the colour rather than scrolling the sheet, as
@@ -1607,6 +1675,16 @@ Suspended purchases are asked for (`includeSuspendedAndroid`) precisely so that
 somebody on account hold is told to fix a payment rather than sold a
 subscription they already have.
 
+**On iOS the same subscription is three products** — `wordburn_pro_weekly`,
+`_monthly`, `_yearly` — in one App Store subscription group, because the App
+Store has no base plans. `plansFromAppStore` reads them into the same `Plan`
+the paywall draws from Play's offers, the plan being the product id's last
+word; the product id rides in `offerToken`, which is what `requestPurchase`
+wants on iOS; `currentPlanId` on an iOS purchase is the product id. The trial
+is an introductory offer on yearly, and it is shown only when
+`isEligibleForIntroOfferIOS` says the account may still have it, because
+StoreKit lists the offer for everybody. `APP-STORE.md` has the console side.
+
 No price is composed in this app. Every amount on the paywall is Play's own
 string, and the one number worked out here — yearly's per-month figure — is
 Play's micros over twelve, formatted by `Intl` in Play's currency **with as many
@@ -1840,6 +1918,44 @@ animates the user's own line with its real picks.
   the `head -1` trap above in a new coat: it quit at the first match, `unzip`
   died of SIGPIPE, and a QA build that did contain the marker was reported as
   not having it. It counts now.
+
+## Things iOS taught us, on a simulator
+
+- **The iOS 27 SDK will not launch an app on the application life cycle.** The
+  first build died at startup with "UIScene life cycle is required for apps
+  built with this SDK". Expo SDK 57 adopts scenes only behind
+  `ios.enableSceneSupport` in `expo-build-properties` 57.0.22+, which rewrites
+  the template `AppDelegate` and adds the scene manifest at prebuild.
+- **The app's data directory moves on every install.** iOS puts the container
+  under a new UUID each update and leaves everything inside it where it was.
+  `project.sourceUri` was an absolute `file://` path into the old one, so the
+  first update opened every project on "Can't find this video" with the video
+  one directory rename away. `rehomedSourceUri` rebuilds it from the project
+  directory at load time; Android never moves and the function is the
+  identity there. Never persist an absolute container path on iOS.
+- **An album needs the whole photo library.** `Asset.create(uri)` with no
+  album is covered by the add-only permission this app asks for; `Album.get`
+  and `Album.create` throw `FailedToGrantPermissions` without read-write
+  access to everything. So there is no Wordburn album on iOS and the export
+  lands in Recents, which is the same trade the Android side made when it
+  narrowed the permission.
+- **`restorePurchases` is `AppStore.sync`, and it puts "Sign in to Apple
+  Account" over whatever screen is up.** It was running at every launch from
+  `syncEntitlement`, over Welcome. The quiet query already sees every device
+  on the account; the sync runs only when the user taps Restore.
+- **Core Graphics has no shadow-only draw**, and a blurred shadow drawn under a
+  translucent card would show the shape through it. The shape goes a canvas
+  width off the bitmap and the shadow offset brings the blur back; the
+  culling worried about did not happen.
+- **`setShadow`'s blur is about two sigmas**, measured on the exported file
+  against the Skia preview, not read in a document. Handed the plan's sigma
+  as it was, every glow would have been half as soft.
+- **`expo prebuild` without `--clean` can empty `Pods/`** and leave the
+  workspace gone; `ios-sim.sh` runs `pod install` after every prebuild for it.
+- **XCUITest's photo picker has a group whose label is every cell's label
+  joined**, so a `CONTAINS` match on a clip's name lands on the group and the
+  tap on its first cell — the export that had just been saved, picked twice
+  before the driver was taught to match `.image` elements only.
 
 ## Conventions
 

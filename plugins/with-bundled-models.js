@@ -19,12 +19,19 @@
  * they have to land at the bundle's root — which is where a resource in the
  * `Resources` group lands. Nothing is compressed in an app bundle, so there is
  * no second half to this one.
+ *
+ * The five caption fonts ride along on iOS as well. On Android the burn-in
+ * module's Gradle build points its own assets at `assets/fonts`; an iOS pod
+ * cannot reach outside its directory, so the app bundle carries them and the
+ * Swift burn-in opens them by file name from there. Still one copy in the
+ * repository, which is what invariant 2 needs from them.
  */
 const fs = require('fs');
 const path = require('path');
 const { IOSConfig, withAppBuildGradle, withXcodeProject } = require('expo/config-plugins');
 
 const MODELS_DIR = 'assets/models';
+const FONTS_DIR = 'assets/fonts';
 
 const ANCHOR = /^android \{$/m;
 
@@ -72,14 +79,21 @@ function withBundledModelsIos(config) {
       );
     }
 
+    const fontsDirectory = path.join(projectRoot, FONTS_DIR);
+    const fonts = fs.readdirSync(fontsDirectory).filter((name) => name.endsWith('.ttf'));
+
     const project = xcodeConfig.modResults;
     IOSConfig.XcodeUtils.ensureGroupRecursively(project, 'Resources');
 
-    for (const name of models) {
+    const files = [
+      ...models.map((name) => path.join(directory, name)),
+      ...fonts.map((name) => path.join(fontsDirectory, name)),
+    ];
+    for (const file of files) {
       // A file already in the group is skipped by the helper, so a second
       // prebuild over an existing `ios/` adds nothing twice.
       IOSConfig.XcodeUtils.addResourceFileToGroup({
-        filepath: path.relative(platformProjectRoot, path.join(directory, name)),
+        filepath: path.relative(platformProjectRoot, file),
         groupName: 'Resources',
         project,
         isBuildFile: true,

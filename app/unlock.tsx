@@ -141,7 +141,7 @@ export default function Unlock() {
 
   const restore = useCallback(async () => {
     setPhase({ kind: 'pricing' });
-    const synced = await syncEntitlement();
+    const synced = await syncEntitlement({ restore: true });
     if (!synced) {
       setPhase({ kind: 'failed', message: storeUnreachable() });
       return;

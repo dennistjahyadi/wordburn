@@ -14,6 +14,7 @@ import { Directory, File, Paths } from 'expo-file-system';
 
 import type { Language, Ms, Project, ProjectStatus } from '../domain';
 import { loadSettings } from './settings';
+import { rehomedSourceUri } from './source';
 
 /** Bumped when the on-disk shape changes in a way an old file cannot satisfy. */
 export const PROJECT_FORMAT = 1;
@@ -108,7 +109,12 @@ export function loadProject(id: string): Project | null {
   try {
     const parsed = JSON.parse(file.textSync()) as { format: number; project: Project };
     if (parsed.format !== PROJECT_FORMAT) return null;
-    return parsed.project;
+    const project = parsed.project;
+    // The directory can have moved since this was written (iOS, every update).
+    return {
+      ...project,
+      sourceUri: rehomedSourceUri(project.sourceUri, project.id, projectDirectory(id).uri),
+    };
   } catch {
     // A half-written file is a project we cannot show. Saying so beats crashing
     // the list that every other project is also in.

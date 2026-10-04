@@ -34,7 +34,10 @@ export interface OfferInput {
 
 export interface Plan {
   id: PlanId;
-  /** What `requestPurchase` needs to buy exactly this offer. */
+  /**
+   * What `requestPurchase` needs to buy exactly this offer: Play's offer token,
+   * or on iOS the product itself, since each plan is a product of its own there.
+   */
   offerToken: string;
   /** The recurring price, as Play wrote it: "$39.99", "Rp 649.000". */
   price: string;
@@ -82,6 +85,86 @@ export function plansFromOffers(offers: OfferInput[]): Plan[] {
   }
 
   return plans;
+}
+
+/** One App Store product, the way StoreKit describes it. */
+export interface AppStoreProductInput {
+  id: string;
+  /** "$39.99", as the App Store wrote it for this storefront. */
+  displayPrice: string;
+  /** The amount as a number, in `currency`. */
+  price: number | null;
+  currency: string;
+  periodUnit: 'day' | 'week' | 'month' | 'year' | 'empty' | null;
+  periodNumber: number | null;
+  /** The introductory offer, if the product has one. */
+  intro: {
+    paymentMode: 'empty' | 'free-trial' | 'pay-as-you-go' | 'pay-up-front';
+    periodUnit: 'day' | 'week' | 'month' | 'year' | 'empty' | null;
+    periodNumber: number | null;
+  } | null;
+}
+
+/**
+ * One plan per App Store product, in weekly-monthly-yearly order.
+ *
+ * The App Store models what Play calls base plans as separate products in one
+ * subscription group, so the plan is read off the product id's last word:
+ * `wordburn_pro_yearly` is the yearly plan. Prices come as the App Store wrote
+ * them, like Play's, and the amount is turned into micros only for the
+ * per-month arithmetic the card does. A free trial is an introductory offer
+ * with `free-trial` as its payment mode; StoreKit lists it whether or not this
+ * account may still have it, so `eligibleForIntro` is the caller's answer to
+ * that question, asked of the subscription group.
+ */
+export function plansFromAppStore(
+  products: AppStoreProductInput[],
+  eligibleForIntro: boolean
+): Plan[] {
+  const plans: Plan[] = [];
+
+  for (const id of PLAN_IDS) {
+    const product = products.find((candidate) => candidate.id.endsWith(`_${id}`));
+    if (!product) continue;
+
+    const period = periodOf(isoPeriod(product.periodUnit, product.periodNumber));
+    if (!period) continue;
+
+    const intro = product.intro;
+    const trial =
+      eligibleForIntro && intro && intro.paymentMode === 'free-trial'
+        ? isoDays(isoPeriod(intro.periodUnit, intro.periodNumber))
+        : null;
+
+    plans.push({
+      id,
+      offerToken: product.id,
+      price: product.displayPrice,
+      priceMicros: Math.round((product.price ?? 0) * 1_000_000),
+      currency: product.currency,
+      period,
+      trialDays: trial,
+    });
+  }
+
+  return plans;
+}
+
+/** StoreKit's unit and count as the ISO period Play would have written. */
+function isoPeriod(unit: AppStoreProductInput['periodUnit'], count: number | null): string {
+  const n = count && count > 0 ? count : 1;
+  switch (unit) {
+    case 'day':
+      return `P${n}D`;
+    case 'week':
+      return `P${n}W`;
+    case 'month':
+      return `P${n}M`;
+    case 'year':
+      return `P${n}Y`;
+    default:
+      return '';
+  }
 }
 
 /** A free first phase is a trial. Anything else — a cheap first month — is not. */
