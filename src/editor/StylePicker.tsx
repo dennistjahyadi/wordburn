@@ -69,6 +69,7 @@ import {
   type StyleOverrides,
   type TextSize,
 } from '../domain';
+import { presetName, useCopy, type Copy } from '../i18n';
 import { CaptionElements } from '../render/CaptionOverlay';
 import { createFrameSource, type FrameSource } from '../render/frame';
 import type { FontLookup } from '../render/typefaces';
@@ -130,11 +131,13 @@ const HUE_HEIGHT = 32;
  * drag inside the dial, which is the control that made the chips shortcuts
  * rather than the whole of what position means.
  */
-const BANDS: { value: CaptionPosition; label: string }[] = [
-  { value: CAPTION_BAND.upper, label: 'Upper' },
-  { value: CAPTION_BAND.middle, label: 'Middle' },
-  { value: CAPTION_BAND.lower, label: 'Lower' },
-];
+function bands(words: Copy['stylePicker']): { value: CaptionPosition; label: string }[] {
+  return [
+    { value: CAPTION_BAND.upper, label: words.upper },
+    { value: CAPTION_BAND.middle, label: words.middle },
+    { value: CAPTION_BAND.lower, label: words.lower },
+  ];
+}
 
 /**
  * Which colour the swatches and the strip are pointed at.
@@ -145,10 +148,12 @@ const BANDS: { value: CaptionPosition; label: string }[] = [
  */
 type ColorTarget = 'highlight' | 'text';
 
-const TARGETS: { value: ColorTarget; label: string }[] = [
-  { value: 'highlight', label: 'Highlight' },
-  { value: 'text', label: 'Text' },
-];
+function targets(words: Copy['stylePicker']): { value: ColorTarget; label: string }[] {
+  return [
+    { value: 'highlight', label: words.highlight },
+    { value: 'text', label: words.text },
+  ];
+}
 
 /** How far one accessibility increment moves the captions, as a fraction of the frame. */
 const NUDGE = 0.01;
@@ -197,6 +202,8 @@ export function StylePicker({
   const [gridWidth, setGridWidth] = useState(0);
   const [target, setTarget] = useState<ColorTarget>('highlight');
   const [dragging, setDragging] = useState(false);
+  const dictionary = useCopy();
+  const words = dictionary.stylePicker;
 
   const style = projectStyle(project);
   const accent = accentColor(style);
@@ -214,14 +221,14 @@ export function StylePicker({
     () =>
       STYLE_PRESETS.map((preset) => ({
         id: preset.id,
-        name: preset.name,
+        name: presetName(preset.id, dictionary),
         source: createFrameSource({
           ...project,
           styleId: preset.id,
           styleOverrides: tileOverrides(styleOverridesFor(preset.id, choices)),
         }),
       })),
-    [project, choices]
+    [project, choices, dictionary]
   );
 
   const tileWidth = gridWidth > 0 ? Math.floor((gridWidth - space.sm) / 2) : 0;
@@ -231,12 +238,12 @@ export function StylePicker({
     <>
       <View style={styles.header}>
         <View style={styles.headerText}>
-          <Label variant="title">Style</Label>
+          <Label variant="title">{words.title}</Label>
           <Label variant="micro" tone="mute">
-            The dashed box is what every platform leaves uncovered.
+            {words.note}
           </Label>
         </View>
-        {onClose ? <SheetAction label="Done" onPress={onClose} tone="quiet" accent={accent} /> : null}
+        {onClose ? <SheetAction label={words.done} onPress={onClose} tone="quiet" accent={accent} /> : null}
       </View>
 
       <ScrollView
@@ -263,16 +270,16 @@ export function StylePicker({
           onPick={(id) => onChange(id, choices)}
         />
 
-        <Field label="Colour">
+        <Field label={words.colour}>
           <View style={styles.choices}>
-            {TARGETS.map((tab) => {
+            {targets(words).map((tab) => {
               const on = tab.value === target;
               return (
                 <Pressable
                   key={tab.value}
                   accessibilityRole="button"
                   accessibilityState={{ selected: on }}
-                  accessibilityLabel={`${tab.label} colour`}
+                  accessibilityLabel={words.colourOf(tab.label)}
                   onPress={() => setTarget(tab.value)}
                   style={({ pressed }) => [
                     styles.choice,
@@ -300,7 +307,7 @@ export function StylePicker({
               <Pressable
                 key={swatch}
                 accessibilityRole="button"
-                accessibilityLabel={`${target === 'highlight' ? 'Highlight' : 'Text'} colour ${swatch}`}
+                accessibilityLabel={words.swatch(target === 'highlight' ? words.highlight : words.text, swatch)}
                 accessibilityState={{ selected: sameColor(swatch, painted) }}
                 onPress={() => set(target === 'highlight' ? { color: swatch } : { textColor: swatch })}
                 hitSlop={(MIN_TOUCH - SWATCH) / 2}
@@ -316,13 +323,14 @@ export function StylePicker({
 
           <HueStrip
             color={painted}
+            label={words.customColour}
             onPick={(picked) =>
               set(target === 'highlight' ? { color: picked } : { textColor: picked })
             }
           />
         </Field>
 
-        <Field label="Size" hint="Drag to any size, or tap S, M or L.">
+        <Field label={words.size} hint={words.sizeHint}>
           <SizeSlider
             size={style.textSize}
             accent={accent}
@@ -337,7 +345,7 @@ export function StylePicker({
           />
         </Field>
 
-        <Field label="Position" hint="Tap or drag in the frame to put them anywhere.">
+        <Field label={words.position} hint={words.positionHint}>
           <View style={styles.position}>
             <FrameDial
               aspect={aspect}
@@ -348,7 +356,7 @@ export function StylePicker({
             />
             <View style={styles.bands}>
               <Choices
-                options={BANDS}
+                options={bands(words)}
                 value={style.position}
                 accent={accent}
                 column
@@ -358,13 +366,15 @@ export function StylePicker({
           </View>
         </Field>
 
-        <Field label="Words per line">
+        <Field label={words.wordsPerLine}>
           <Stepper
             value={style.maxWordsPerLine}
             min={WORDS_PER_LINE_RANGE.min}
             max={WORDS_PER_LINE_RANGE.max}
-            unit={(count) => (count === 1 ? '1 word' : `${count} words`)}
-            accessibilityLabel="Words per line"
+            unit={dictionary.common.words}
+            fewer={words.fewer}
+            more={words.more}
+            accessibilityLabel={words.wordsPerLine}
             onPick={(maxWordsPerLine) => set({ maxWordsPerLine })}
           />
         </Field>
@@ -646,14 +656,15 @@ function FrameDial({
   );
 
   const zone = safeZoneUnion();
+  const words = useCopy().stylePicker;
 
   return (
     <View
       {...responder.panHandlers}
       onLayout={(event) => setHeight(Math.round(event.nativeEvent.layout.height))}
       accessibilityRole="adjustable"
-      accessibilityLabel="Caption position"
-      accessibilityValue={{ text: `${Math.round(position * 100)}% down the frame` }}
+      accessibilityLabel={words.captionPosition}
+      accessibilityValue={{ text: words.positionValue(Math.round(position * 100)) }}
       accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
       onAccessibilityAction={(event) =>
         onPick(
@@ -758,6 +769,7 @@ function SizeSlider({
   const span = TEXT_SIZE_RANGE.max - TEXT_SIZE_RANGE.min;
   const at = (value: number) => (value - TEXT_SIZE_RANGE.min) / span;
   const fraction = Math.min(1, Math.max(0, at(size)));
+  const words = useCopy().stylePicker;
 
   return (
     <View style={styles.sizeRow}>
@@ -768,8 +780,8 @@ function SizeSlider({
         {...responder.panHandlers}
         onLayout={(event) => setWidth(Math.round(event.nativeEvent.layout.width))}
         accessibilityRole="adjustable"
-        accessibilityLabel="Caption size"
-        accessibilityValue={{ text: `${Math.round(size * 1920)} pixels on a 1080 by 1920 video` }}
+        accessibilityLabel={words.captionSize}
+        accessibilityValue={{ text: words.sizeValue(Math.round(size * 1920)) }}
         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
         onAccessibilityAction={(event) =>
           onPick(snapTextSize(size + (event.nativeEvent.actionName === 'increment' ? SIZE_NUDGE : -SIZE_NUDGE)))
@@ -818,6 +830,8 @@ function Stepper({
   min,
   max,
   unit,
+  fewer,
+  more,
   accessibilityLabel,
   onPick,
 }: {
@@ -825,6 +839,9 @@ function Stepper({
   min: number;
   max: number;
   unit: (value: number) => string;
+  /** What the two buttons are called to a screen reader. */
+  fewer: string;
+  more: string;
   accessibilityLabel: string;
   onPick: (value: number) => void;
 }) {
@@ -840,7 +857,7 @@ function Stepper({
     >
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Fewer"
+        accessibilityLabel={fewer}
         accessibilityState={{ disabled: value <= min }}
         disabled={value <= min}
         onPress={() => step(-1)}
@@ -853,7 +870,7 @@ function Stepper({
       </Label>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="More"
+        accessibilityLabel={more}
         accessibilityState={{ disabled: value >= max }}
         disabled={value >= max}
         onPress={() => step(1)}
@@ -871,7 +888,16 @@ function Stepper({
  * Drawn in Skia because it is a gradient and React Native has none; a strip of
  * solid slices fine enough not to band would be a hundred views.
  */
-function HueStrip({ color: current, onPick }: { color: string; onPick: (color: string) => void }) {
+function HueStrip({
+  color: current,
+  label,
+  onPick,
+}: {
+  color: string;
+  /** What the strip is called to a screen reader. */
+  label: string;
+  onPick: (color: string) => void;
+}) {
   const [width, setWidth] = useState(0);
   const size = useRef(0);
   size.current = width;
@@ -908,7 +934,7 @@ function HueStrip({ color: current, onPick }: { color: string; onPick: (color: s
       {...responder.panHandlers}
       onLayout={(event) => setWidth(Math.round(event.nativeEvent.layout.width))}
       accessibilityRole="adjustable"
-      accessibilityLabel="Custom highlight colour"
+      accessibilityLabel={label}
       style={styles.hue}
     >
       {width > 0 ? (

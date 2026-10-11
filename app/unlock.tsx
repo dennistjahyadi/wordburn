@@ -33,7 +33,6 @@ import {
   formatMicros,
   fractionDigitsOf,
   monthlyMicros,
-  perPeriod,
   yearlySaving,
   type Plan,
 } from '../src/policy/plans';
@@ -45,8 +44,9 @@ import {
   storeUnreachable,
   subscribe,
 } from '../src/policy/store';
+import { useCopy } from '../src/i18n';
 import { Label, PrimaryButton, QuietButton, Screen } from '../src/ui/atoms';
-import { LINKS, pro } from '../src/ui/copy';
+import { LINKS } from '../src/ui/links';
 import { color, DEFAULT_ACCENT, MIN_TOUCH, radius, space } from '../src/ui/theme';
 
 type Phase =
@@ -64,6 +64,7 @@ export default function Unlock() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [chosen, setChosen] = useState<PlanId>('yearly');
   const [phase, setPhase] = useState<Phase>({ kind: 'pricing' });
+  const { pro } = useCopy();
 
   const load = useCallback(async () => {
     setPhase({ kind: 'pricing' });
@@ -115,7 +116,7 @@ export default function Unlock() {
     if (DEV_TOOLS && plan.offerToken === '') {
       saveProOverride({ kind: 'subscribed', plan: plan.id });
       setStatus(loadProStatus());
-      Alert.alert('Simulated purchase', 'No Google Play here: Pro is on through the developer override. Settings → Developer turns it off.');
+      Alert.alert(pro.simulatedTitle, pro.simulatedBody);
       return;
     }
 
@@ -137,7 +138,7 @@ export default function Unlock() {
       case 'failed':
         setPhase({ kind: 'failed', message: outcome.message });
     }
-  }, [plan]);
+  }, [plan, pro]);
 
   const restore = useCallback(async () => {
     setPhase({ kind: 'pricing' });
@@ -149,7 +150,7 @@ export default function Unlock() {
     const next = proStatus(synced);
     setStatus(next);
     setPhase(isPro(next) || next.kind === 'suspended' ? { kind: 'ready' } : { kind: 'failed', message: pro.nothingToRestore });
-  }, []);
+  }, [pro]);
 
   /** Back where they came from, or Home if they arrived from somewhere with no way back. */
   const leave = useCallback(() => {
@@ -220,7 +221,7 @@ export default function Unlock() {
 
           {plan ? (
             <Label variant="micro" tone="mute" style={styles.centre}>
-              {pro.fineprint(plan.price, perPeriod(plan), plan.trialDays)}
+              {pro.fineprint(plan.price, pro.perPeriod[plan.period], plan.trialDays)}
             </Label>
           ) : null}
 
@@ -271,6 +272,7 @@ function PlanCard({
   saving: number | null;
   onPress: () => void;
 }) {
+  const { pro } = useCopy();
   const monthly =
     plan.id === 'yearly'
       ? (formatLike(plan.price, monthlyMicros(plan)) ??
@@ -318,7 +320,7 @@ function PlanCard({
       <View style={styles.cardPrice}>
         <Label variant="heading">{plan.price}</Label>
         <Label variant="micro" tone="mute">
-          {perPeriod(plan)}
+          {pro.perPeriod[plan.period]}
         </Label>
       </View>
     </Pressable>
@@ -345,17 +347,19 @@ function Active({
   onLeave: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const { pro } = useCopy();
   const toExport = from === 'export' && !!id;
-  // Subscribed in the middle of first launch: back to the language step, which
-  // is still on the stack under this and still holds the language they paid
-  // for. Home would skip the rest of onboarding and drop that choice.
+  // Subscribed in the middle of first launch: back to the step underneath,
+  // which still holds whatever they were choosing. Home would skip the rest of
+  // onboarding and drop that choice. Nothing sends `onboarding` today — every
+  // language is free, and Welcome holds the picker — but the door stays.
   const toOnboarding = from === 'onboarding';
 
   const detail =
     status.kind === 'lifetime'
       ? pro.active.lifetime
       : status.kind === 'subscribed'
-        ? (status.renewing ? pro.active.renewing : pro.active.ending)(status.plan ? pro.plan[status.plan] : 'Your')
+        ? (status.renewing ? pro.active.renewing : pro.active.ending)(status.plan ? pro.plan[status.plan] : pro.yourPlan)
         : '';
 
   return (
@@ -406,6 +410,7 @@ function Active({
  */
 function OnHold({ onLeave }: { onLeave: () => void }) {
   const insets = useSafeAreaInsets();
+  const { pro } = useCopy();
 
   return (
     <Screen>

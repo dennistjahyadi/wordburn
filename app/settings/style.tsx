@@ -11,11 +11,10 @@
  * The preview is the video's rectangle at 9:16 with no video behind it: the
  * shape this app is for, and the frame the export renders into.
  *
- * It is also the third step of first launch (`?onboarding=1`), after the
- * language (`app/language.tsx`): pick a look
- * once, and every video and every batch starts in it, so
- * nobody restyles the same captions clip after clip. There it has Continue
- * instead of Back, and Continue goes Home.
+ * It is also the second step of first launch (`?onboarding=1`), after Welcome
+ * has asked for a language: pick a look once, and every video and every batch
+ * starts in it, so nobody restyles the same captions clip after clip. There it
+ * has Continue instead of Back, and Continue goes Home.
  */
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -37,8 +36,8 @@ import { createMeasureText } from '../../src/render/measure';
 import { SAMPLE_LOOP_MS, sampleProject } from '../../src/render/sample';
 import { useCaptionFonts } from '../../src/render/typefaces';
 import { Label, QuietButton, Screen } from '../../src/ui/atoms';
+import { useCopy } from '../../src/i18n';
 import { useClock } from '../../src/ui/clock';
-import { defaultStyle, looks } from '../../src/ui/copy';
 import { SaveLookSheet } from '../../src/ui/save-look';
 import { useReducedMotion } from '../../src/ui/motion';
 import { containRect, SafeZone } from '../../src/ui/stage';
@@ -70,6 +69,7 @@ export default function DefaultStyle() {
   const insets = useSafeAreaInsets();
   const onboarding = useLocalSearchParams<{ onboarding?: string }>().onboarding === '1';
   const [saving, setSaving] = useState(false);
+  const { defaultStyle, looks, common } = useCopy();
 
   const [chosen, setChosen] = useState<{ styleId: string; styleOverrides: StyleOverrides }>(() => {
     const settings = loadSettings();
@@ -135,7 +135,7 @@ export default function DefaultStyle() {
           <View style={styles.balance} />
         ) : (
           <QuietButton
-            title="Back"
+            title={common.back}
             onPress={() => {
               flush();
               router.back();

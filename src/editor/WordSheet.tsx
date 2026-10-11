@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 
 import type { Word } from '../domain';
+import { useCopy } from '../i18n';
 import { Label } from '../ui/atoms';
 import { color, font, space, type } from '../ui/theme';
 import { SheetAction } from './Sheet';
@@ -68,6 +69,7 @@ export function WordSheet({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(word.text);
   const field = useRef<TextInput>(null);
+  const copy = useCopy().wordSheet;
 
   // A different word in the same sheet is a different subject: drop the draft
   // and the keyboard with it.
@@ -106,10 +108,10 @@ export function WordSheet({
         </View>
 
         {onPlay && !editing ? (
-          <SheetAction label="Play" onPress={onPlay} tone="quiet" accent={accent} accessibilityLabel={`Play “${word.text}” again`} />
+          <SheetAction label={copy.play} onPress={onPlay} tone="quiet" accent={accent} accessibilityLabel={copy.playAgain(word.text)} />
         ) : null}
         <SheetAction
-          label={editing ? 'Save' : 'Done'}
+          label={editing ? copy.save : copy.done}
           onPress={() => (editing ? commit(false) : onClose())}
           tone={editing && changed ? 'accent' : 'quiet'}
           accent={accent}
@@ -122,29 +124,29 @@ export function WordSheet({
               and it is one undo step either way. */}
           {facts.sameHeardCount > 0 && changed ? (
             <SheetAction
-              label={`Fix ${facts.sameHeardCount} more like this`}
+              label={copy.fixMore(facts.sameHeardCount)}
               onPress={() => commit(true)}
               tone="quiet"
               accent={accent}
             />
           ) : null}
           <Label variant="micro" tone="mute">
-            A space splits the word in two.
+            {copy.spaceSplits}
           </Label>
         </View>
       ) : (
         <>
           <View style={styles.row}>
-            <SheetAction label="Edit" onPress={() => setEditing(true)} tone="tile" accent={accent} />
+            <SheetAction label={copy.edit} onPress={() => setEditing(true)} tone="tile" accent={accent} />
             <SheetAction
-              label="Timing"
-              accessibilityLabel={`Timing for ${word.text}`}
+              label={copy.timing}
+              accessibilityLabel={copy.timingFor(word.text)}
               onPress={actions.openTiming}
               tone="tile"
               accent={accent}
             />
             <SheetAction
-              label={facts.emphasised ? 'Make normal' : 'Make big'}
+              label={facts.emphasised ? copy.makeNormal : copy.makeBig}
               onPress={() => actions.setEmphasis(!facts.emphasised)}
               tone="tile"
               accent={accent}
@@ -156,8 +158,8 @@ export function WordSheet({
                 dictionary about a word it already got right and the user kept. */}
             {facts.fromDictionary ? null : (
               <SheetAction
-                label="Add to your words"
-                accessibilityLabel={`Add ${word.text} to your words`}
+                label={copy.addToWords}
+                accessibilityLabel={copy.addToWordsFor(word.text)}
                 onPress={actions.addToDictionary}
                 tone="tile"
                 accent={accent}
@@ -168,21 +170,21 @@ export function WordSheet({
           <View style={styles.row}>
             {facts.lowConfidence ? (
               <SheetAction
-                label="Looks right"
+                label={copy.looksRight}
                 onPress={actions.confirm}
                 tone="tile"
                 accent={accent}
               />
             ) : null}
             <SheetAction
-              label={word.breakAfter === 'line' ? 'No line break' : 'Line break'}
+              label={word.breakAfter === 'line' ? copy.noLineBreak : copy.lineBreak}
               onPress={actions.toggleLineBreak}
               tone="tile"
               accent={accent}
             />
             {facts.hasNext ? (
               <SheetAction
-                label="Join with next"
+                label={copy.joinNext}
                 onPress={actions.joinWithNext}
                 tone="tile"
                 accent={accent}
@@ -190,7 +192,7 @@ export function WordSheet({
             ) : null}
           </View>
 
-          <SheetAction label="Delete word" onPress={actions.remove} tone="danger" accent={accent} />
+          <SheetAction label={copy.deleteWord} onPress={actions.remove} tone="danger" accent={accent} />
         </>
       )}
     </>
@@ -209,10 +211,11 @@ export function WordSheet({
  * the engine for a probability.
  */
 function Subline({ facts }: { facts: WordFacts }) {
+  const copy = useCopy().wordSheet;
   const notes: string[] = [];
-  if (facts.lowConfidence) notes.push('Not sure about this one');
-  if (facts.emphasised) notes.push(facts.emphasisAutomatic ? 'made big automatically' : 'made big');
-  if (facts.fromDictionary) notes.push('changed by your dictionary');
+  if (facts.lowConfidence) notes.push(copy.notSure);
+  if (facts.emphasised) notes.push(facts.emphasisAutomatic ? copy.madeBigAuto : copy.madeBig);
+  if (facts.fromDictionary) notes.push(copy.byDictionary);
 
   if (notes.length === 0) return null;
   return (

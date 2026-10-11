@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { normalizeForMatch, type DictionaryEntry } from '../../src/domain';
 import { Sheet, SheetAction } from '../../src/editor/Sheet';
+import { useCopy } from '../../src/i18n';
 import {
   FREE_DICTIONARY_LIMIT,
   loadDictionary,
@@ -30,6 +31,8 @@ import { color, DEFAULT_ACCENT, MIN_TOUCH, radius, space } from '../../src/ui/th
 export default function Dictionary() {
   const insets = useSafeAreaInsets();
   const { spelling, heard } = useLocalSearchParams<{ spelling?: string; heard?: string }>();
+  const words = useCopy();
+  const copy = words.dictionary;
 
   const [entries, setEntries] = useState<DictionaryEntry[]>([]);
   const [editing, setEditing] = useState<DictionaryEntry | null>(null);
@@ -64,22 +67,18 @@ export default function Dictionary() {
       // The cap is stated in the dialog, and the way past it is one tap. The
       // navigation sits in the button's own callback rather than after an
       // awaited alert: on Android `onDismiss` fires for a button press too.
-      Alert.alert(
-        `The free list holds ${FREE_DICTIONARY_LIMIT} words`,
-        'Wordburn Pro lifts the limit. Your words stay either way.',
-        [
-          { text: 'Not now', style: 'cancel' },
-          {
-            text: 'Go Pro',
-            onPress: () => router.push({ pathname: '/unlock', params: { from: 'dictionary' } }),
-          },
-        ]
-      );
+      Alert.alert(copy.capTitle(FREE_DICTIONARY_LIMIT), copy.capBody, [
+        { text: words.common.notNow, style: 'cancel' },
+        {
+          text: copy.goPro,
+          onPress: () => router.push({ pathname: '/unlock', params: { from: 'dictionary' } }),
+        },
+      ]);
       return;
     }
 
     setEditing({ id: newEntryId(), spelling: '', heardAs: [], createdAt: new Date().toISOString() });
-  }, [full]);
+  }, [copy, full, words]);
 
   const save = useCallback(
     (entry: DictionaryEntry) => {
@@ -108,11 +107,11 @@ export default function Dictionary() {
   return (
     <Screen>
       <View style={[styles.bar, { paddingTop: insets.top + space.sm }]}>
-        <QuietButton title="Back" onPress={() => router.back()} />
+        <QuietButton title={words.common.back} onPress={() => router.back()} />
         <Label variant="label" tone="mute">
-          Your words
+          {copy.title}
         </Label>
-        <Pressable accessibilityRole="button" accessibilityLabel="Add a word" onPress={add} style={styles.add}>
+        <Pressable accessibilityRole="button" accessibilityLabel={copy.addWord} onPress={add} style={styles.add}>
           <Label variant="heading" tone={full ? 'mute' : 'paper'}>
             +
           </Label>
@@ -121,10 +120,9 @@ export default function Dictionary() {
 
       {entries.length === 0 ? (
         <View style={styles.empty}>
-          <Label variant="title">No words yet</Label>
+          <Label variant="title">{copy.emptyTitle}</Label>
           <Label variant="body" tone="mute" style={styles.centre}>
-            Fix a word in the editor and add it here, and every video after this one gets it right
-            the first time.
+            {copy.emptyBody}
           </Label>
         </View>
       ) : (
@@ -134,15 +132,13 @@ export default function Dictionary() {
               {index === 0 ? null : <Divider />}
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`Edit ${entry.spelling}`}
+                accessibilityLabel={copy.editEntry(entry.spelling)}
                 onPress={() => setEditing(entry)}
                 style={({ pressed }) => [styles.row, { opacity: pressed ? 0.6 : 1 }]}
               >
                 <Label variant="body">{entry.spelling}</Label>
                 <Label variant="micro" tone="mute" numberOfLines={2}>
-                  {entry.heardAs.length === 0
-                    ? 'Nothing heard yet'
-                    : `heard as ${entry.heardAs.join(', ')}`}
+                  {entry.heardAs.length === 0 ? copy.nothingHeard : copy.heardAs(entry.heardAs.join(', '))}
                 </Label>
               </Pressable>
             </View>
@@ -152,19 +148,17 @@ export default function Dictionary() {
 
       {undoable ? (
         <Pressable accessibilityRole="button" onPress={undo} style={styles.undo}>
-          <Label variant="label">Deleted “{undoable.spelling}”</Label>
+          <Label variant="label">{copy.deleted(undoable.spelling)}</Label>
           <Label variant="label" tone="mute">
-            Undo
+            {copy.undo}
           </Label>
         </Pressable>
       ) : null}
 
       <View style={styles.foot}>
         <Label variant="micro" tone="mute">
-          Used on every new video. Words fixed this way are marked in the transcript.
-          {unlocked || entries.length === 0
-            ? ''
-            : ` ${entries.length} of ${FREE_DICTIONARY_LIMIT} free.`}
+          {copy.foot}
+          {unlocked || entries.length === 0 ? '' : ` ${copy.footFree(entries.length, FREE_DICTIONARY_LIMIT)}`}
         </Label>
       </View>
 
@@ -204,6 +198,7 @@ function EntryEditor({
   const [spelling, setSpelling] = useState(entry.spelling);
   const [heardAs, setHeardAs] = useState(entry.heardAs);
   const [draft, setDraft] = useState('');
+  const copy = useCopy().dictionary;
 
   const addVariant = () => {
     const variant = normalizeForMatch(draft.trim());
@@ -220,9 +215,9 @@ function EntryEditor({
   return (
     <>
       <View style={styles.header}>
-        <Label variant="title">{entry.spelling === '' ? 'New word' : entry.spelling}</Label>
+        <Label variant="title">{entry.spelling === '' ? copy.newWord : entry.spelling}</Label>
         <SheetAction
-          label="Save"
+          label={copy.save}
           tone={ready ? 'accent' : 'quiet'}
           accent={DEFAULT_ACCENT}
           disabled={!ready}
@@ -231,7 +226,7 @@ function EntryEditor({
       </View>
 
       <Label variant="micro" tone="mute">
-        Spelling
+        {copy.spelling}
       </Label>
       <TextInput
         value={spelling}
@@ -242,20 +237,20 @@ function EntryEditor({
         autoFocus={entry.spelling === ''}
         autoCapitalize="none"
         autoCorrect={false}
-        placeholder="KitVerify"
+        placeholder={copy.spellingPlaceholder}
         placeholderTextColor={color.mute}
         style={styles.field}
       />
 
       <Label variant="micro" tone="mute">
-        Heard as
+        {copy.heardAsLabel}
       </Label>
       <View style={styles.chips}>
         {heardAs.map((variant) => (
           <Pressable
             key={variant}
             accessibilityRole="button"
-            accessibilityLabel={`Remove ${variant}`}
+            accessibilityLabel={copy.removeVariant(variant)}
             onPress={() => setHeardAs(heardAs.filter((held) => held !== variant))}
             style={({ pressed }) => [styles.chip, { opacity: pressed ? 0.6 : 1 }]}
           >
@@ -274,16 +269,16 @@ function EntryEditor({
           autoCapitalize="none"
           autoCorrect={false}
           returnKeyType="done"
-          placeholder="what the engine writes instead"
+          placeholder={copy.variantPlaceholder}
           placeholderTextColor={color.mute}
           style={[styles.field, styles.variantField]}
         />
-        <SheetAction label="Add" tone="quiet" accent={DEFAULT_ACCENT} onPress={addVariant} />
+        <SheetAction label={copy.add} tone="quiet" accent={DEFAULT_ACCENT} onPress={addVariant} />
       </View>
 
       <View style={styles.footRow}>
-        <SheetAction label="Delete" tone="danger" accent={DEFAULT_ACCENT} onPress={onDelete} />
-        <SheetAction label="Cancel" tone="quiet" accent={DEFAULT_ACCENT} onPress={onClose} />
+        <SheetAction label={copy.delete} tone="danger" accent={DEFAULT_ACCENT} onPress={onDelete} />
+        <SheetAction label={copy.cancel} tone="quiet" accent={DEFAULT_ACCENT} onPress={onClose} />
       </View>
     </>
   );

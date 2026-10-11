@@ -12,9 +12,9 @@
  */
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { useCopy } from '../i18n';
 import type { FreeTierStatus } from '../policy/free-tier';
 import { Label } from './atoms';
-import { pro } from './copy';
 import { color, MIN_TOUCH, radius, space } from './theme';
 
 export function FreeTierLine({
@@ -28,6 +28,7 @@ export function FreeTierLine({
   onPress: () => void;
   style?: StyleProp<ViewStyle>;
 }) {
+  const words = useCopy();
   // Nothing at all once they have paid. Not a green tick, not a thank you: the
   // reward for buying it is never being sold to again.
   if (tier.line === '') return null;
@@ -42,7 +43,7 @@ export function FreeTierLine({
   //
   // Under subscriptions the link sells Pro rather than one feature of it, since
   // the watermark is now one of five things the same tap buys.
-  const cta = tier.onHold ? 'Fix it' : pro.upsell;
+  const cta = tier.onHold ? words.tier.fixIt : words.pro.upsell;
 
   return (
     <Pressable
@@ -52,7 +53,7 @@ export function FreeTierLine({
       style={({ pressed }) => [styles.row, { opacity: pressed ? 0.6 : 1 }, style]}
     >
       <View style={styles.chip}>
-        <Label variant="micro" tone="mute">
+        <Label variant="micro" tone="mute" style={styles.chipText}>
           {tier.line}
         </Label>
       </View>
@@ -64,18 +65,26 @@ export function FreeTierLine({
 }
 
 const styles = StyleSheet.create({
+  // Wraps rather than running off both edges. In English the chip and the link
+  // fit on one row; in Spanish, French or Polish the sentence alone is nearly a
+  // phone's width, and a centred row that cannot wrap clips both ends — seen on
+  // the emulator the first time Home was drawn in Spanish.
   row: {
     minHeight: MIN_TOUCH,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'center',
     gap: space.sm,
   },
   chip: {
+    flexShrink: 1,
+    maxWidth: '100%',
     paddingHorizontal: space.md,
     paddingVertical: space.xs,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: color.line,
   },
+  chipText: { textAlign: 'center' },
 });

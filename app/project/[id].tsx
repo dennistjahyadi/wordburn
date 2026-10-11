@@ -63,6 +63,7 @@ import { StylePicker } from '../../src/editor/StylePicker';
 import { TimingSheet } from '../../src/editor/TimingSheet';
 import { WordSheet, type WordFacts, type WordSheetActions } from '../../src/editor/WordSheet';
 import { useProjectEditor, type ProjectEditor } from '../../src/editor/useProjectEditor';
+import { useCopy, type Copy } from '../../src/i18n';
 import { CaptionLayer } from '../../src/render/CaptionLayer';
 import { createFrameSource, type FrameSource } from '../../src/render/frame';
 import { createMeasureText } from '../../src/render/measure';
@@ -76,7 +77,7 @@ import { deleteProject, loadProject, saveProject, thumbnailFile } from '../../sr
 import { Label, PrimaryButton, QuietButton, Screen } from '../../src/ui/atoms';
 import { useClock, type Clock } from '../../src/ui/clock';
 import { Curtain } from '../../src/ui/curtain';
-import { describeProject, plural } from '../../src/ui/describe';
+import { describeProject, words as countWords } from '../../src/ui/describe';
 import { useReducedMotion } from '../../src/ui/motion';
 import { containRect, SafeZone } from '../../src/ui/stage';
 import { formatClock } from '../../src/ui/time';
@@ -160,6 +161,8 @@ export default function Editor() {
   const [project, setProject] = useState<Project | null>(() => (id ? loadProject(id) : null));
   const [missing, setMissing] = useState(false);
   const [relinking, setRelinking] = useState(false);
+  const words = useCopy();
+  const copy = words.editor;
 
   useFocusEffect(
     useCallback(() => {
@@ -188,10 +191,10 @@ export default function Editor() {
         setProject(next);
         setMissing(!sourceExists(next));
       } catch (error) {
-        Alert.alert('That video could not be used', describe(error));
+        Alert.alert(copy.couldNotUse, describe(error));
       }
     },
-    [project]
+    [copy, project]
   );
 
   /**
@@ -220,43 +223,39 @@ export default function Editor() {
       // button press, so a promise around it cannot tell "Use it anyway" from
       // the dialog closing afterwards. The work happens in the button instead.
       if (pickedMs > 0 && Math.abs(pickedMs - project.durationMs) > RELINK_TOLERANCE_MS) {
-        askAboutDifferentLength(project.durationMs, pickedMs, () => useVideo(picked.uri));
+        askAboutDifferentLength(project.durationMs, pickedMs, () => useVideo(picked.uri), copy);
         return;
       }
 
       useVideo(picked.uri);
     } catch (error) {
-      Alert.alert('That video could not be opened', describe(error));
+      Alert.alert(copy.couldNotOpen, describe(error));
     } finally {
       setRelinking(false);
     }
-  }, [project, useVideo]);
+  }, [copy, project, useVideo]);
 
   const confirmDelete = useCallback(() => {
     if (!project) return;
-    Alert.alert(
-      'Delete this project?',
-      `${describeProject(project)}\n\nThe transcript goes with it. This cannot be undone.`,
-      [
-        { text: 'Keep', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            deleteProject(project.id);
-            router.replace('/');
-          },
+    Alert.alert(copy.deleteTitle, copy.deleteBody(describeProject(project)), [
+      { text: words.common.keep, style: 'cancel' },
+      {
+        text: words.common.delete,
+        style: 'destructive',
+        onPress: () => {
+          deleteProject(project.id);
+          router.replace('/');
         },
-      ]
-    );
-  }, [project]);
+      },
+    ]);
+  }, [copy, project, words]);
 
   if (!project) {
     return (
       <Screen>
         <View style={[styles.empty, { paddingTop: insets.top + space.huge }]}>
-          <Label variant="heading">That project is gone</Label>
-          <QuietButton title="Back to Home" onPress={() => router.replace('/')} />
+          <Label variant="heading">{copy.gone}</Label>
+          <QuietButton title={copy.backHome} onPress={() => router.replace('/')} />
         </View>
       </Screen>
     );
@@ -268,25 +267,23 @@ export default function Editor() {
     return (
       <Screen>
         <View style={[styles.bar, { paddingTop: insets.top + space.sm }]}>
-          <QuietButton title="Back" onPress={() => router.replace('/')} />
+          <QuietButton title={copy.back} onPress={() => router.replace('/')} />
         </View>
         <View style={styles.missing}>
-          <Label variant="title">Can’t find this video</Label>
+          <Label variant="title">{copy.missingTitle}</Label>
           <Label variant="body" tone="mute">
-            The file this project was made from is not on the phone any more. Your{' '}
-            {plural(project.words.length, 'word')} are safe: pick the same video again and the
-            captions come back with it.
+            {copy.missingBody(countWords(project.words.length))}
           </Label>
           <PrimaryButton
-            title="Choose the video again"
+            title={copy.chooseAgain}
             onPress={chooseVideoAgain}
             accent={DEFAULT_ACCENT}
             busy={relinking}
           />
-          <QuietButton title="Delete project" tone="signal" onPress={confirmDelete} />
+          <QuietButton title={copy.deleteProject} tone="signal" onPress={confirmDelete} />
         </View>
         {/* The same wait as Home's, for the same copy. */}
-        {relinking ? <Curtain title="Getting your video ready" note="A long clip takes a few seconds." /> : null}
+        {relinking ? <Curtain title={words.home.curtainTitle} note={words.home.curtainNote} /> : null}
       </Screen>
     );
   }
@@ -298,6 +295,8 @@ export default function Editor() {
 function Workspace({ stored }: { stored: Project }) {
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const words = useCopy();
+  const copy = words.editor;
 
   // Re-read on every entry: the dictionary screen is one tap away and what it
   // holds decides whether this project has anything left to fix.
@@ -588,11 +587,11 @@ function Workspace({ stored }: { stored: Project }) {
         .filter((word): word is Word => word !== undefined)
         .map((word) => word.id);
 
-      editor.editTiming('Timing', () => words, moving);
+      editor.editTiming(copy.step.timing, () => words, moving);
       setPreview(null);
       setTimingId(null);
     },
-    [editor, project.words, timingId]
+    [copy, editor, project.words, timingId]
   );
 
   /** Backing out of the timing sheet drops the draft and plays the word once more. */
@@ -625,14 +624,14 @@ function Workspace({ stored }: { stored: Project }) {
 
   const applyShift = useCallback(
     (nextOffsetMs: Ms) => {
-      editor.editProject('Shift captions', (current) =>
+      editor.editProject(copy.step.shiftCaptions, (current) =>
         shiftAll(current, nextOffsetMs - current.globalOffsetMs)
       );
       setPreview(null);
       setShiftLine(null);
       stopLoop();
     },
-    [editor, stopLoop]
+    [copy, editor, stopLoop]
   );
 
   const closeShift = useCallback(() => {
@@ -698,8 +697,8 @@ function Workspace({ stored }: { stored: Project }) {
       .filter((word, index) => word !== project.words[index])
       .map((word) => word.id);
 
-    editor.edit(touched.length === 1 ? 'Use your word' : 'Use your words', () => next, touched);
-  }, [dictionary, editor, project.words]);
+    editor.edit(touched.length === 1 ? copy.step.useYourWord : copy.step.useYourWords, () => next, touched);
+  }, [copy, dictionary, editor, project.words]);
 
   const accent = accentColor(source.style);
 
@@ -708,23 +707,23 @@ function Workspace({ stored }: { stored: Project }) {
       {/* Undo and redo live here rather than beside the chips: they are the way
           back from anything, so they never scroll and never move. */}
       <View style={[styles.bar, { paddingTop: insets.top + space.sm }]}>
-        <QuietButton title="Back" onPress={() => router.back()} />
+        <QuietButton title={copy.back} onPress={() => router.back()} />
         <Timecode clock={clock} durationMs={info.durationMs} />
         <View style={styles.barActions}>
           <StepButton
             label="↶"
-            accessibilityLabel={editor.undoLabel ? `Undo ${editor.undoLabel}` : 'Undo'}
+            accessibilityLabel={editor.undoLabel ? copy.undoStep(editor.undoLabel) : copy.undo}
             disabled={!editor.canUndo}
             onPress={editor.undo}
           />
           <StepButton
             label="↷"
-            accessibilityLabel={editor.redoLabel ? `Redo ${editor.redoLabel}` : 'Redo'}
+            accessibilityLabel={editor.redoLabel ? copy.redoStep(editor.redoLabel) : copy.redo}
             disabled={!editor.canRedo}
             onPress={editor.redo}
           />
           <QuietButton
-            title="Export"
+            title={copy.export}
             onPress={() => router.push({ pathname: '/export/[id]', params: { id: project.id } })}
           />
         </View>
@@ -732,7 +731,7 @@ function Workspace({ stored }: { stored: Project }) {
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={playing ? 'Pause' : 'Play'}
+        accessibilityLabel={playing ? words.common.pause : words.common.play}
         onPress={() => (playing ? player.pause() : player.play())}
         onLayout={(event) => {
           if (fullscreen) setFullHeight(Math.round(event.nativeEvent.layout.height));
@@ -784,7 +783,7 @@ function Workspace({ stored }: { stored: Project }) {
         />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={playing ? 'Pause' : 'Play'}
+          accessibilityLabel={playing ? words.common.pause : words.common.play}
           onPress={() => (playing ? player.pause() : player.play())}
           style={[styles.transport, fullscreen && { bottom: space.md + insets.bottom }]}
         >
@@ -798,7 +797,7 @@ function Workspace({ stored }: { stored: Project }) {
         {fullscreen || !(timingWord || selected || shiftLine || styling) ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={fullscreen ? 'Exit full screen' : 'Full screen'}
+            accessibilityLabel={fullscreen ? copy.exitFullScreen : copy.fullScreen}
             onPress={() => setFullscreen((current) => !current)}
             style={[styles.expand, fullscreen && { top: space.sm + insets.top }]}
           >
@@ -818,22 +817,22 @@ function Workspace({ stored }: { stored: Project }) {
         {toCheck > 0 ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`${toCheck} words to check`}
+            accessibilityLabel={copy.wordsToCheck(toCheck)}
             onPress={checkNext}
             style={({ pressed }) => [styles.chip, { borderColor: accent, opacity: pressed ? 0.6 : 1 }]}
           >
-            <Label variant="label">{toCheck} to check</Label>
+            <Label variant="label">{copy.toCheck(toCheck)}</Label>
           </Pressable>
         ) : null}
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Style"
+          accessibilityLabel={copy.style}
           onPress={openStyle}
           style={({ pressed }) => [styles.chip, { opacity: pressed ? 0.6 : 1 }]}
         >
           <Label variant="label" tone="mute">
-            Style
+            {copy.style}
           </Label>
         </Pressable>
 
@@ -841,23 +840,23 @@ function Workspace({ stored }: { stored: Project }) {
             join it in a later slice, and one item is not a menu. */}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Shift all captions"
+          accessibilityLabel={copy.shiftAllCaptions}
           onPress={openShift}
           style={({ pressed }) => [styles.chip, { opacity: pressed ? 0.6 : 1 }]}
         >
           <Label variant="label" tone="mute">
-            Shift all
+            {copy.shiftAll}
           </Label>
         </Pressable>
 
         {toFix > 0 ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Fix ${toFix} with your words`}
+            accessibilityLabel={copy.fixWithYourWords(toFix)}
             onPress={useYourWords}
             style={({ pressed }) => [styles.chip, { borderColor: accent, opacity: pressed ? 0.6 : 1 }]}
           >
-            <Label variant="label">Fix {toFix} with your words</Label>
+            <Label variant="label">{copy.fixWithYourWords(toFix)}</Label>
           </Pressable>
         ) : null}
         </ScrollView>
@@ -867,7 +866,7 @@ function Workspace({ stored }: { stored: Project }) {
           play button that does nothing. */}
       {status === 'error' ? (
         <Label variant="micro" tone="signal" style={styles.fps}>
-          Couldn’t play this video on this phone. Try another file.
+          {copy.cantPlay}
         </Label>
       ) : SHOW_OVERLAY_FPS ? (
         <Label variant="micro" tone="mute" style={styles.fps}>
@@ -910,7 +909,7 @@ function Workspace({ stored }: { stored: Project }) {
               word={selected}
               accent={accent}
               facts={factsFor(project, selected, selectedIndex)}
-              actions={actionsFor(editor, selected, selectedIndex, newId, closeWord, setTimingId)}
+              actions={actionsFor(editor, selected, selectedIndex, newId, closeWord, setTimingId, copy)}
               onClose={closeWord}
               onPlay={playSelected}
             />
@@ -967,9 +966,11 @@ function actionsFor(
   index: number,
   newId: () => string,
   onRemoved: () => void,
-  onTiming: (id: string) => void
+  onTiming: (id: string) => void,
+  copy: Copy['editor']
 ): WordSheetActions {
   const project = editor.project;
+  const step = copy.step;
 
   return {
     openTiming() {
@@ -992,7 +993,7 @@ function actionsFor(
         ? [word.id, ...sameHeardWordIds(project.words, word.id)]
         : [word.id];
       editor.edit(
-        ids.length > 1 ? `Fix ${ids.length} words` : 'Edit word',
+        ids.length > 1 ? step.fixWords(ids.length) : step.editWord,
         (words) => editWordsText(words, ids, text, newId),
         ids
       );
@@ -1001,28 +1002,28 @@ function actionsFor(
     joinWithNext() {
       const next = project.words[index + 1];
       if (!next) return;
-      editor.edit('Join words', (words) => mergeWords(words, [word.id, next.id]), [word.id]);
+      editor.edit(step.joinWords, (words) => mergeWords(words, [word.id, next.id]), [word.id]);
     },
 
     setEmphasis(on) {
       editor.edit(
-        on ? 'Make big' : 'Make normal',
+        on ? step.makeBig : step.makeNormal,
         (words) => setEmphasis(words, word.id, on ? 'on' : 'off'),
         [word.id]
       );
     },
 
     confirm() {
-      editor.edit('Looks right', (words) => confirmWord(words, word.id), [word.id]);
+      editor.edit(step.looksRight, (words) => confirmWord(words, word.id), [word.id]);
     },
 
     toggleLineBreak() {
       const breakAfter = word.breakAfter === 'line' ? 'auto' : 'line';
-      editor.edit('Line break', (words) => setBreakAfter(words, word.id, breakAfter), [word.id]);
+      editor.edit(step.lineBreak, (words) => setBreakAfter(words, word.id, breakAfter), [word.id]);
     },
 
     remove() {
-      editor.edit('Delete word', (words) => deleteWord(words, word.id), [word.id]);
+      editor.edit(step.deleteWord, (words) => deleteWord(words, word.id), [word.id]);
       onRemoved();
     },
   };
@@ -1038,6 +1039,7 @@ function actionsFor(
  */
 function CoachCard({ toCheck, onShowMe }: { toCheck: number; onShowMe: () => void }) {
   const [show, setShow] = useState(() => toCheck > 0 && !loadSettings().coachCardSeen);
+  const copy = useCopy().editor;
 
   const dismiss = useCallback(() => {
     setShow(false);
@@ -1048,9 +1050,7 @@ function CoachCard({ toCheck, onShowMe }: { toCheck: number; onShowMe: () => voi
 
   return (
     <Pressable accessibilityRole="button" style={styles.coach} onPress={dismiss}>
-      <Label variant="body">
-        Dotted words are ones the engine wasn’t sure about. Tap one to fix it.
-      </Label>
+      <Label variant="body">{copy.coach}</Label>
       <Pressable
         accessibilityRole="button"
         onPress={() => {
@@ -1059,7 +1059,7 @@ function CoachCard({ toCheck, onShowMe }: { toCheck: number; onShowMe: () => voi
         }}
         style={styles.coachAction}
       >
-        <Label variant="label">Show me</Label>
+        <Label variant="label">{copy.showMe}</Label>
       </Pressable>
     </Pressable>
   );
@@ -1225,6 +1225,7 @@ const Transcript = memo(function Transcript({
   }, [source]);
 
   const activeUnit = activeId ? (unitOfWord.get(activeId) ?? -1) : -1;
+  const copy = useCopy().editor;
 
   useEffect(() => {
     const top = tops.current[activeUnit];
@@ -1238,7 +1239,7 @@ const Transcript = memo(function Transcript({
     return (
       <View style={styles.transcriptEmpty}>
         <Label variant="label" tone="mute">
-          This project has no words yet.
+          {copy.noWords}
         </Label>
       </View>
     );
@@ -1281,6 +1282,7 @@ const UnitRow = memo(function UnitRow({
   onPickWord: (word: Word) => void;
   onTop: (y: number) => void;
 }) {
+  const copy = useCopy().editor;
   return (
     <View style={styles.unit} onLayout={(event) => onTop(event.nativeEvent.layout.y)}>
       {unit.words.map((word) => {
@@ -1293,7 +1295,7 @@ const UnitRow = memo(function UnitRow({
           <Pressable
             key={word.id}
             accessibilityRole="button"
-            accessibilityLabel={unsure ? `${word.text}, not sure about this one` : word.text}
+            accessibilityLabel={unsure ? copy.notSure(word.text) : word.text}
             hitSlop={WORD_HIT_SLOP}
             onPress={() => onPickWord(word)}
             style={({ pressed }) => [
@@ -1423,17 +1425,11 @@ function useSourceInfo(player: VideoPlayer, project: Project | null) {
  * further out with every second. It is still the user's call: a re-encode or a
  * trimmed second at the end is a length change they may well accept.
  */
-function askAboutDifferentLength(projectMs: Ms, pickedMs: Ms, accept: () => void): void {
-  Alert.alert(
-    'That looks like a different video',
-    `The captions are timed to a ${formatClock(projectMs)} clip and this one is ${formatClock(
-      pickedMs
-    )}. They will not line up.`,
-    [
-      { text: 'Pick another', style: 'cancel' },
-      { text: 'Use it anyway', onPress: accept },
-    ]
-  );
+function askAboutDifferentLength(projectMs: Ms, pickedMs: Ms, accept: () => void, copy: Copy['editor']): void {
+  Alert.alert(copy.differentTitle, copy.differentBody(formatClock(projectMs), formatClock(pickedMs)), [
+    { text: copy.pickAnother, style: 'cancel' },
+    { text: copy.useAnyway, onPress: accept },
+  ]);
 }
 
 function describe(error: unknown): string {

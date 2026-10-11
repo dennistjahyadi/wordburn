@@ -16,6 +16,7 @@ import { track } from '../analytics/events';
 import BurnIn, { type SavedFile, type VideoInfo } from '../../modules/burn-in';
 import * as ForegroundService from '../native/foreground-service';
 import { projectStyle, projectUnits, toSrt, type MeasureText, type Ms, type Project } from '../domain';
+import { copy } from '../i18n';
 import { loadEntitlement, loadStoredEntitlement, saveEntitlement } from '../policy/entitlement-store';
 import { freeTierStatus, recordExport } from '../policy/free-tier';
 import { recordExportMade } from '../project/settings';
@@ -80,7 +81,7 @@ export interface ExportOutcome {
 export const canExport = BurnIn !== null;
 
 function burnIn(): NonNullable<typeof BurnIn> {
-  if (!BurnIn) throw new Error('Exporting is not built for iPhone yet.');
+  if (!BurnIn) throw new Error(copy().export.notBuiltIos);
   return BurnIn;
 }
 
@@ -188,7 +189,7 @@ export async function runExport(request: ExportRequest): Promise<ExportOutcome> 
   });
   // Not awaited, ever. A foreground-service call that does not settle would stop
   // an export between two frames with the whole render already done.
-  ForegroundService.start('Rendering your captions', 0).catch(() => undefined);
+  ForegroundService.start(copy().export.serviceTitle, 0).catch(() => undefined);
 
   try {
     const rendered = await burnIn().render(

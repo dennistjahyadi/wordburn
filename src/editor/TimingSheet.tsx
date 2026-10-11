@@ -23,6 +23,7 @@ import {
   type NudgeEdge,
   type Word,
 } from '../domain';
+import { useCopy } from '../i18n';
 import { Label } from '../ui/atoms';
 import type { Clock } from '../ui/clock';
 import { color, MIN_TOUCH, radius, space } from '../ui/theme';
@@ -87,6 +88,7 @@ export function TimingSheet({
   const [live, setLive] = useState<Word[] | null>(null);
   const [looping, setLooping] = useState(true);
   const [width, setWidth] = useState(0);
+  const copy = useCopy().timing;
 
   const window = useMemo(() => timingWindow(word), [word.id]);
   const shown = live ?? draftWords;
@@ -199,12 +201,12 @@ export function TimingSheet({
     <>
       <View style={styles.header}>
         <View style={styles.headerText}>
-          <Label variant="title">Timing</Label>
+          <Label variant="title">{copy.title}</Label>
           <Label variant="label" tone="mute">
             {formatPrecise(draft.start)} → {formatPrecise(draft.end)} · {draft.end - draft.start} ms
           </Label>
         </View>
-        <SheetAction label="Apply" onPress={() => onApply(shown)} tone="accent" accent={accent} />
+        <SheetAction label={copy.apply} onPress={() => onApply(shown)} tone="accent" accent={accent} />
       </View>
 
       <View
@@ -245,16 +247,16 @@ export function TimingSheet({
       </View>
 
       <View style={styles.steppers}>
-        <StepperRow label="Start" edge="start" onStep={step} onSettle={publish} />
-        <StepperRow label="End" edge="end" onStep={step} onSettle={publish} />
-        <StepperRow label="Move" edge="both" onStep={step} onSettle={publish} />
+        <StepperRow label={copy.start} edge="start" onStep={step} onSettle={publish} />
+        <StepperRow label={copy.end} edge="end" onStep={step} onSettle={publish} />
+        <StepperRow label={copy.move} edge="both" onStep={step} onSettle={publish} />
       </View>
 
       <View style={styles.footer}>
         <Pressable
           accessibilityRole="switch"
           accessibilityState={{ checked: looping }}
-          accessibilityLabel="Loop this word"
+          accessibilityLabel={copy.loopThisWord}
           onPress={toggleLoop}
           style={({ pressed }) => [
             styles.loop,
@@ -263,11 +265,11 @@ export function TimingSheet({
           ]}
         >
           <Label variant="label" tone={looping ? 'paper' : 'mute'}>
-            {looping ? 'Looping' : 'Loop'}
+            {looping ? copy.looping : copy.loop}
           </Label>
         </Pressable>
 
-        <SheetAction label="Cancel" onPress={onClose} tone="quiet" accent={accent} />
+        <SheetAction label={copy.cancel} onPress={onClose} tone="quiet" accent={accent} />
       </View>
     </>
   );
@@ -293,6 +295,7 @@ function StepperRow({
   onStep: (edge: NudgeEdge, deltaMs: Ms) => void;
   onSettle: () => void;
 }) {
+  const copy = useCopy().timing;
   return (
     <View style={styles.stepperRow}>
       <Label variant="label" tone="mute" style={styles.stepperLabel}>
@@ -300,13 +303,13 @@ function StepperRow({
       </Label>
       <RepeatButton
         label={`−${NUDGE_STEP_MS} ms`}
-        accessibilityLabel={`${label} ${NUDGE_STEP_MS} milliseconds earlier`}
+        accessibilityLabel={copy.earlier(label, NUDGE_STEP_MS)}
         onStep={() => onStep(edge, -NUDGE_STEP_MS)}
         onSettle={onSettle}
       />
       <RepeatButton
         label={`+${NUDGE_STEP_MS} ms`}
-        accessibilityLabel={`${label} ${NUDGE_STEP_MS} milliseconds later`}
+        accessibilityLabel={copy.later(label, NUDGE_STEP_MS)}
         onStep={() => onStep(edge, NUDGE_STEP_MS)}
         onSettle={onSettle}
       />
@@ -344,12 +347,13 @@ const Waveform = memo(function Waveform({
     if (!envelope) return null;
     return peaksForRange(envelope, window.fromMs, window.toMs, Math.max(1, Math.floor(width / BAR_PITCH_PX)));
   }, [envelope, window, width]);
+  const copy = useCopy().timing;
 
   if (!peaks) {
     return (
       <View pointerEvents="none" style={styles.noWave}>
         <Label variant="micro" tone="mute">
-          No waveform for this project. The steppers and the loop still work.
+          {copy.noWaveform}
         </Label>
       </View>
     );

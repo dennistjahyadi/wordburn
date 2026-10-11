@@ -38,6 +38,7 @@ import {
   type Purchase,
 } from 'expo-iap';
 
+import { copy } from '../i18n';
 import { plansFromAppStore, plansFromOffers, type OfferInput, type Plan } from './plans';
 import { isPlanId, PLAN_IDS, type PlanId, type StoreAnswer } from './pro';
 
@@ -276,7 +277,7 @@ export async function subscribe(plan: Plan): Promise<PurchaseOutcome> {
         done({ kind: 'subscribed', plan: plan.id });
         return;
       }
-      done({ kind: 'failed', message: error.message || 'The store did not finish that.' });
+      done({ kind: 'failed', message: error.message || copy().store.didNotFinish });
     });
 
     requestPurchase({
@@ -399,16 +400,12 @@ async function acknowledge(purchase: Purchase): Promise<void> {
 
 /** What to say when the store cannot be reached at all. */
 export function storeUnreachable(): string {
-  return Platform.OS === 'android'
-    ? 'Google Play could not be reached on this phone. Check your connection and try again.'
-    : 'The App Store could not be reached. Check your connection and try again.';
+  return copy().store.unreachable;
 }
 
 /** What to say when the store answered and has nothing to sell this account. */
 export function storeHasNothing(): string {
-  return Platform.OS === 'android'
-    ? 'Google Play is not offering Wordburn Pro to your account yet. Try again later.'
-    : 'The App Store is not offering Wordburn Pro to your account yet. Try again later.';
+  return copy().store.nothing;
 }
 
 function describe(error: unknown): string {

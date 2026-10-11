@@ -1,16 +1,11 @@
 import { evenWords, project } from '../../domain/__fixtures__/project';
-import { describeBytes, describeProject, plural } from '../describe';
+import { describeBytes, describeProject, words } from '../describe';
 
-describe('plural', () => {
+describe('words', () => {
   it('says one word and two words', () => {
-    expect(plural(1, 'word')).toBe('1 word');
-    expect(plural(2, 'word')).toBe('2 words');
-    expect(plural(0, 'word')).toBe('0 words');
-  });
-
-  it('takes an irregular plural when one is given', () => {
-    expect(plural(1, 'entry', 'entries')).toBe('1 entry');
-    expect(plural(3, 'entry', 'entries')).toBe('3 entries');
+    expect(words(1)).toBe('1 word');
+    expect(words(2)).toBe('2 words');
+    expect(words(0)).toBe('0 words');
   });
 });
 

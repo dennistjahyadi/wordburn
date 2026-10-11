@@ -5,6 +5,13 @@ version are cut from here (500 characters; see `PLAY-CONSOLE.md` §8).
 
 ## Unreleased — Wordburn Pro
 
+**The app speaks your language.** Everything Wordburn says — every screen,
+button and message — is now in Dutch, French, German, Indonesian, Italian,
+Polish, Portuguese or Spanish as well as English. The first screen asks which,
+starting on your phone's own language, and that choice is also what your
+first video is assumed to be spoken in. Settings → App language changes the
+words; the Spoken language row on Home still decides each clip.
+
 **Batch captions.** Pick up to 20 clips at once, choose one language and one
 caption style, and Wordburn works through them in the background, one after
 another. A queue screen shows where every clip is, with retry for any that

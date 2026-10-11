@@ -32,6 +32,7 @@ import {
   type PauseReason,
 } from '../domain';
 import { cancelExport, runExport } from '../export/run';
+import { copy } from '../i18n';
 import * as service from '../native/foreground-service';
 import { adoptSource } from '../project/source';
 import { createProject, loadProject, saveProject } from '../project/store';
@@ -206,7 +207,7 @@ async function transcribeFile(job: BatchJob): Promise<ReturnType<typeof loadProj
     const ended = await runToEnd(project);
     if (stopRequested) throw new Error('stopped');
     if (!ended || ended.stage !== 'ready') {
-      throw new Error(ended?.error ?? 'The transcription did not finish.');
+      throw new Error(ended?.error ?? copy().batch.transcriptionDidNotFinish);
     }
     return ended.project;
   } finally {
@@ -216,7 +217,7 @@ async function transcribeFile(job: BatchJob): Promise<ReturnType<typeof loadProj
 
 async function render(job: BatchJob, projectId: string): Promise<void> {
   const project = loadProject(projectId);
-  if (!project || !measure || !batch) throw new Error('The project is gone.');
+  if (!project || !measure || !batch) throw new Error(copy().batch.projectGone);
 
   const taken = new Set(
     batch.jobs.filter((other) => other.id !== job.id && other.outputName).map((other) => other.outputName!)
@@ -250,9 +251,9 @@ function pause(reason: PauseReason): void {
 }
 
 function serviceTitle(): string {
-  if (!batch) return 'Captioning your clips';
+  if (!batch) return copy().batch.serviceTitle;
   const summary = summarize(batch);
-  return `Captioning ${Math.min(summary.done + summary.failed + 1, summary.total)} of ${summary.total}`;
+  return copy().batch.serviceProgress(Math.min(summary.done + summary.failed + 1, summary.total), summary.total);
 }
 
 function sleep(ms: number): Promise<void> {

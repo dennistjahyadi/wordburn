@@ -24,8 +24,8 @@ import { canSaveToGallery } from '../../src/export/run';
 import { requestNotifications } from '../../src/native/foreground-service';
 import { loadLooks } from '../../src/project/presets-store';
 import { loadSettings, rememberLanguage } from '../../src/project/settings';
+import { presetName, useCopy } from '../../src/i18n';
 import { Divider, Label, PrimaryButton, QuietButton, Screen } from '../../src/ui/atoms';
-import { batch as copy } from '../../src/ui/copy';
 import { ensureLanguageReady, LanguageField } from '../../src/ui/language';
 import { color, DEFAULT_ACCENT, MIN_TOUCH, radius, space } from '../../src/ui/theme';
 
@@ -43,12 +43,14 @@ export default function NewBatch() {
   const clips = picked.slice(0, MAX_BATCH_CLIPS);
   const [language, setLanguage] = useState<Language>(() => loadSettings().language);
   const [starting, setStarting] = useState(false);
+  const words = useCopy();
+  const copy = words.batch;
 
   const looks = useMemo(() => {
     const settings = loadSettings();
     const current: Look = {
       key: 'current',
-      name: `${copy.currentLook} · ${STYLE_PRESETS.find((preset) => preset.id === settings.styleId)?.name ?? ''}`,
+      name: `${copy.currentLook} · ${presetName(settings.styleId, words)}`,
       styleId: settings.styleId,
       styleOverrides: settings.styleOverrides,
     };
@@ -58,12 +60,12 @@ export default function NewBatch() {
     }));
     const presets: Look[] = STYLE_PRESETS.map((preset) => ({
       key: `preset-${preset.id}`,
-      name: preset.name,
+      name: presetName(preset.id, words),
       styleId: preset.id,
       styleOverrides: {},
     }));
     return { current, saved, presets };
-  }, []);
+  }, [copy, words]);
   // The default style, always: it is what the user said every video should
   // start in, and a batch that quietly started in some other look would make
   // them check every time.
@@ -113,7 +115,7 @@ export default function NewBatch() {
   return (
     <Screen>
       <View style={[styles.bar, { paddingTop: insets.top + space.sm }]}>
-        <QuietButton title="Back" onPress={() => router.back()} />
+        <QuietButton title={words.common.back} onPress={() => router.back()} />
         <Label variant="label" tone="mute">
           {copy.setupTitle}
         </Label>
@@ -126,7 +128,7 @@ export default function NewBatch() {
         <View style={styles.block}>
           <Label variant="title">{copy.clips(clips.length)}</Label>
           <Label variant="label" tone="mute">
-            {copy.totalLength(formatLength(totalMs))}
+            {copy.totalLength(formatLength(totalMs, words.processing))}
           </Label>
           {picked.length > MAX_BATCH_CLIPS ? (
             <Label variant="label" tone="signal">
@@ -230,10 +232,13 @@ function LookRow({
   );
 }
 
-function formatLength(ms: number): string {
+function formatLength(
+  ms: number,
+  copy: { seconds: (s: number) => string; minutes: (m: number, s: number) => string }
+): string {
   const minutes = Math.floor(ms / 60_000);
   const seconds = Math.round((ms % 60_000) / 1000);
-  return minutes > 0 ? `${minutes} min ${seconds} s` : `${seconds} s`;
+  return minutes > 0 ? copy.minutes(minutes, seconds) : copy.seconds(seconds);
 }
 
 const styles = StyleSheet.create({

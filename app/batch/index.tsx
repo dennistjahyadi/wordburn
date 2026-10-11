@@ -23,14 +23,16 @@ import {
 } from '../../src/batch/queue';
 import { summarize, type Batch, type BatchJob } from '../../src/domain';
 import { thumbnailFile } from '../../src/project/store';
+import { useCopy } from '../../src/i18n';
 import { Label, ProgressBar, QuietButton, Screen } from '../../src/ui/atoms';
-import { batch as copy } from '../../src/ui/copy';
 import { color, DEFAULT_ACCENT, MIN_TOUCH, radius, space } from '../../src/ui/theme';
 
 export default function Queue() {
   const insets = useSafeAreaInsets();
   const [batch, setBatch] = useState<Batch | null>(currentBatch);
   useEffect(() => subscribeBatch(setBatch), []);
+  const words = useCopy();
+  const copy = words.batch;
 
   const summary = batch ? summarize(batch) : null;
   const running = isBatchRunning();
@@ -38,7 +40,7 @@ export default function Queue() {
   return (
     <Screen>
       <View style={[styles.bar, { paddingTop: insets.top + space.sm }]}>
-        <QuietButton title="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
+        <QuietButton title={words.common.back} onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
         <Label variant="label" tone="mute">
           {copy.queueTitle}
         </Label>
@@ -96,6 +98,7 @@ export default function Queue() {
 }
 
 function JobRow({ job }: { job: BatchJob }) {
+  const copy = useCopy().batch;
   const thumb = job.projectId ? thumbnailFile(job.projectId) : null;
   const active = job.status === 'transcribing' || job.status === 'rendering';
 

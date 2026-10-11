@@ -11,8 +11,8 @@ import { StyleSheet, TextInput, View } from 'react-native';
 import type { StyleOverrides } from '../domain';
 import { Sheet } from '../editor/Sheet';
 import { saveLook } from '../project/presets-store';
+import { useCopy } from '../i18n';
 import { Label, PrimaryButton, QuietButton } from './atoms';
-import { looks as copy } from './copy';
 import { color, radius, space, type } from './theme';
 
 export function SaveLookSheet({
@@ -29,6 +29,7 @@ export function SaveLookSheet({
   onSaved: (name: string) => void;
 }) {
   const [name, setName] = useState('');
+  const copy = useCopy().looks;
 
   function save() {
     const look = saveLook(name, styleId, styleOverrides);

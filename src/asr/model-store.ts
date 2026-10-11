@@ -22,6 +22,7 @@
  */
 import { Directory, File, FileMode, Paths } from 'expo-file-system';
 
+import { copy } from '../i18n';
 import * as ForegroundService from '../native/foreground-service';
 
 export interface DownloadedModel {
@@ -178,21 +179,21 @@ export function downloadModel(model: DownloadedModel = MULTILINGUAL_MODEL): Prom
   }
 
   if (!canRunModel()) {
-    publish({ kind: 'failed', message: NOT_ENOUGH_MEMORY });
+    publish({ kind: 'failed', message: copy().languages.notEnoughMemory });
     return Promise.resolve(false);
   }
 
   if (Paths.availableDiskSpace < model.bytes + HEADROOM_BYTES) {
     publish({
       kind: 'failed',
-      message: `This needs ${modelSizeLabel(model)} free, and a little more for your videos. Free up some space and try again.`,
+      message: copy().languages.needsSpace(modelSizeLabel(model)),
     });
     return Promise.resolve(false);
   }
 
   const abort = new AbortController();
   const promise = (async () => {
-    ForegroundService.start('Downloading languages', 0).catch(() => undefined);
+    ForegroundService.start(copy().languages.serviceTitle, 0).catch(() => undefined);
     const ranges = segmentRanges(model.bytes);
     let lastPercent = -1;
 
@@ -221,7 +222,7 @@ export function downloadModel(model: DownloadedModel = MULTILINGUAL_MODEL): Prom
         if (onPhone(index)) continue;
         const range = ranges[index];
         await fetchRange(model.url, range, segmentFile(index), abort.signal, (written) => report(done + written));
-        if (!onPhone(index)) throw new Error('The download did not arrive whole. Try again, on Wi-Fi if you can.');
+        if (!onPhone(index)) throw new NotWholeError();
         done += lengthOf(range);
         report(done);
       }
@@ -233,7 +234,7 @@ export function downloadModel(model: DownloadedModel = MULTILINGUAL_MODEL): Prom
       if (part.size !== model.bytes || part.info({ md5: true }).md5 !== model.md5) {
         clearSegments();
         part.delete();
-        throw new Error('The download did not arrive whole. Try again, on Wi-Fi if you can.');
+        throw new NotWholeError();
       }
 
       const target = modelFile(model);
@@ -345,11 +346,15 @@ export function deleteModel(model: DownloadedModel = MULTILINGUAL_MODEL): void {
   }
 }
 
-export const NOT_ENOUGH_MEMORY =
-  'This phone does not have enough memory for the languages beyond English. English still works.';
+/** A range that landed short, or a joined file whose hash is wrong: the bytes, not the network. */
+class NotWholeError extends Error {
+  constructor() {
+    super(copy().languages.notWhole);
+    this.name = 'NotWholeError';
+  }
+}
 
 function describeDownloadFailure(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  if (/did not arrive whole/.test(message)) return message;
-  return 'The download stopped. Check your connection and try again, on Wi-Fi if you can.';
+  if (error instanceof NotWholeError) return error.message;
+  return copy().languages.stopped;
 }

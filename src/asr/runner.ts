@@ -20,7 +20,6 @@ import {
   dictionaryPrompt,
   computeEnvelopeFromPcm16,
   createIdFactory,
-  languageName,
   lineFlagsFor,
   needsDownloadedModel,
   packSpansIntoChunks,
@@ -33,6 +32,7 @@ import {
   type Project,
   type Span,
 } from '../domain';
+import { copy } from '../i18n';
 import * as service from '../native/foreground-service';
 import { isModelReady } from './model-store';
 import {
@@ -79,17 +79,6 @@ export interface RunState {
   etaMs?: Ms;
   error?: string;
 }
-
-/** What the Processing screen shows as one short line. */
-export const STAGE_LABEL: Record<Stage, string> = {
-  queued: 'Getting ready',
-  extracting: 'Getting audio',
-  transcribing: 'Transcribing',
-  aligning: 'Lining up words',
-  ready: 'Done',
-  paused: 'Paused — keep the app open to finish',
-  failed: 'Something went wrong',
-};
 
 /**
  * How far the picker's duration may be out before the decoded audio replaces it.
@@ -240,16 +229,14 @@ async function run(initial: Project): Promise<void> {
     // Started, never awaited. The notification is a courtesy and the platform
     // has many opinions about foreground services; none of them may be allowed
     // to hold up a transcription. See `update` below.
-    void service.start('Captioning your video', 0);
+    void service.start(copy().processing.serviceTitle, 0);
 
     // The downloaded model can be deleted from Settings between a project being
     // made and being resumed. Said plainly, rather than as whatever whisper.cpp
     // says about a file that is not there.
     const language = projectLanguage(project);
     if (needsDownloadedModel(language) && !isModelReady()) {
-      throw new Error(
-        `The ${languageName(language)} model is not on this phone. Download it from Settings → Languages and try again.`
-      );
+      throw new Error(copy().languages.modelMissing(copy().languageNames[language]));
     }
     context = await openWhisper(language);
     const pass = await transcribeAll(project, pcm, pipeline, context, dictionary);

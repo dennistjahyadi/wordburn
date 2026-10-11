@@ -22,7 +22,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { accentColor, projectStyle, projectUnits, type Project } from '../../src/domain';
-import { cancelRun, currentRun, startRun, STAGE_LABEL, subscribe, type RunState } from '../../src/asr/runner';
+import { cancelRun, currentRun, startRun, subscribe, type RunState } from '../../src/asr/runner';
+import { useCopy } from '../../src/i18n';
 import { loadProject } from '../../src/project/store';
 import { Label, QuietButton, Screen } from '../../src/ui/atoms';
 import { SteppingLine } from '../../src/ui/curtain';
@@ -35,6 +36,7 @@ export default function Processing() {
   const { height: windowHeight } = useWindowDimensions();
   const [stored] = useState<Project | null>(() => (id ? loadProject(id) : null));
   const [run, setRun] = useState<RunState | null>(() => currentRun());
+  const copy = useCopy().processing;
 
   useEffect(() => {
     if (!stored) return;
@@ -75,8 +77,8 @@ export default function Processing() {
     return (
       <Screen>
         <View style={[styles.empty, { paddingTop: insets.top + space.huge }]}>
-          <Label variant="heading">That project is gone</Label>
-          <QuietButton title="Back to Home" onPress={() => router.back()} />
+          <Label variant="heading">{copy.gone}</Label>
+          <QuietButton title={copy.backHome} onPress={() => router.back()} />
         </View>
       </Screen>
     );
@@ -100,7 +102,7 @@ export default function Processing() {
           <View style={styles.stageLine}>
             <ListeningBars accent={accent} active={working} />
             <Label variant="label" tone={stage === 'failed' ? 'signal' : 'mute'}>
-              {stage === 'failed' ? (run?.error ?? STAGE_LABEL.failed) : STAGE_LABEL[stage]}
+              {stage === 'failed' ? (run?.error ?? copy.stage.failed) : copy.stage[stage]}
             </Label>
           </View>
           <Label variant="label" tone="mute">
@@ -109,7 +111,7 @@ export default function Processing() {
         </View>
         {run?.etaMs !== undefined && stage === 'transcribing' ? (
           <Label variant="micro" tone="mute">
-            About {formatSeconds(run.etaMs)} left
+            {copy.aboutLeft(formatSeconds(run.etaMs, copy))}
           </Label>
         ) : null}
       </View>
@@ -118,10 +120,10 @@ export default function Processing() {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>
         {stage === 'ready' ? (
-          <QuietButton title="Back to Home" onPress={() => router.back()} />
+          <QuietButton title={copy.backHome} onPress={() => router.back()} />
         ) : (
           <QuietButton
-            title="Cancel"
+            title={copy.cancel}
             tone="signal"
             onPress={() => {
               cancelRun();
@@ -141,11 +143,12 @@ function Preview({ project }: { project: Project }) {
     instance.muted = false;
   });
   const [playing, setPlaying] = useState(false);
+  const words = useCopy();
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={playing ? 'Pause' : 'Play'}
+      accessibilityLabel={playing ? words.common.pause : words.common.play}
       onPress={() => {
         if (playing) player.pause();
         else player.play();
@@ -162,7 +165,7 @@ function Preview({ project }: { project: Project }) {
       {!playing ? (
         <View style={styles.playHint}>
           <Label variant="label" tone="mute">
-            Tap to play
+            {words.processing.tapToPlay}
           </Label>
         </View>
       ) : null}
@@ -182,6 +185,7 @@ function Preview({ project }: { project: Project }) {
 function Transcript({ project, settled, accent }: { project: Project; settled: boolean; accent: string }) {
   const scroller = useRef<ScrollView>(null);
   const lines = useMemo(() => projectUnits(project), [project]);
+  const copy = useCopy().processing;
 
   useEffect(() => {
     scroller.current?.scrollToEnd({ animated: true });
@@ -190,7 +194,7 @@ function Transcript({ project, settled, accent }: { project: Project; settled: b
   if (lines.length === 0) {
     return (
       <View style={styles.transcriptEmpty}>
-        <SteppingLine text="Listening for the first words" variant="heading" accent={accent} />
+        <SteppingLine text={copy.listening} variant="heading" accent={accent} />
       </View>
     );
   }
@@ -209,10 +213,10 @@ function Transcript({ project, settled, accent }: { project: Project; settled: b
   );
 }
 
-function formatSeconds(ms: number): string {
+function formatSeconds(ms: number, copy: { seconds: (s: number) => string; minutes: (m: number, s: number) => string }): string {
   const seconds = Math.max(1, Math.round(ms / 1000));
-  if (seconds < 60) return `${seconds} s`;
-  return `${Math.floor(seconds / 60)} min ${seconds % 60} s`;
+  if (seconds < 60) return copy.seconds(seconds);
+  return copy.minutes(Math.floor(seconds / 60), seconds % 60);
 }
 
 const styles = StyleSheet.create({

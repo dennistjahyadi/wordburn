@@ -26,6 +26,7 @@ import {
   runExport,
   type ResolutionChoice,
 } from '../../src/export/run';
+import { useCopy } from '../../src/i18n';
 import { loadEntitlement } from '../../src/policy/entitlement-store';
 import { freeTierStatus } from '../../src/policy/free-tier';
 import { loadProject, thumbnailFile } from '../../src/project/store';
@@ -43,6 +44,8 @@ const RESOLUTIONS: ResolutionChoice[] = ['720p', '1080p', 'source'];
 export default function Export() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
+  const words = useCopy();
+  const copy = words.export;
 
   const [project] = useState<Project | null>(() => (id ? loadProject(id) : null));
   const [info, setInfo] = useState<VideoInfo | null>(null);
@@ -92,20 +95,13 @@ export default function Export() {
     // the file, is an export that failed at the last step. Failing here costs
     // the user nothing.
     if (!(await canSaveToGallery())) {
-      Alert.alert(
-        'Wordburn cannot reach your gallery',
-        'Allow it to save videos in Settings, and the export will land in your gallery.'
-      );
+      Alert.alert(copy.galleryTitle, copy.galleryBody);
       return;
     }
 
     const space = checkSpace(info, resolution, project.durationMs);
     if (!space.enough) {
-      Alert.alert(
-        'Not enough space for this export',
-        `It needs about ${describeBytes(space.needed)} and there is ${describeBytes(space.free)} free. ` +
-          'Free some up, or try 720p in Options.'
-      );
+      Alert.alert(copy.spaceTitle, copy.spaceBody(describeBytes(space.needed), describeBytes(space.free)));
       return;
     }
 
@@ -139,17 +135,17 @@ export default function Export() {
       // Cancelling is not a failure, and an alert saying so would make it feel
       // like one.
       if (!raw.toLowerCase().includes('cancel')) {
-        Alert.alert('That export did not finish', describeExportFailure(error));
+        Alert.alert(copy.failedTitle, describeExportFailure(error));
       }
     }
-  }, [alsoSrt, info, measure, project, reducedMotion, rendering, resolution]);
+  }, [alsoSrt, copy, info, measure, project, reducedMotion, rendering, resolution]);
 
   if (!project) {
     return (
       <Screen>
         <View style={[styles.empty, { paddingTop: insets.top + space.huge }]}>
-          <Label variant="heading">That project is gone</Label>
-          <QuietButton title="Back to Home" onPress={() => router.replace('/')} />
+          <Label variant="heading">{copy.gone}</Label>
+          <QuietButton title={copy.backHome} onPress={() => router.replace('/')} />
         </View>
       </Screen>
     );
@@ -162,9 +158,9 @@ export default function Export() {
   return (
     <Screen>
       <View style={[styles.bar, { paddingTop: insets.top + space.sm }]}>
-        <QuietButton title="Back" onPress={() => router.back()} />
+        <QuietButton title={words.common.back} onPress={() => router.back()} />
         <Label variant="label" tone="mute">
-          Export
+          {copy.title}
         </Label>
         <View style={styles.balance} />
       </View>
@@ -177,15 +173,15 @@ export default function Export() {
 
       {canExport ? (
         <Label variant="label" tone="mute" style={styles.spec}>
-          {size ? `${size.width} × ${size.height}` : 'Reading the video'}
+          {size ? `${size.width} × ${size.height}` : copy.reading}
           {info ? ` · ${Math.round(info.fps)} fps` : ''}
-          {tier.watermark ? ' · with a watermark' : ' · no watermark'}
+          {` · ${tier.watermark ? copy.withWatermark : copy.noWatermark}`}
         </Label>
       ) : (
         // iOS has no burn-in, so `info` never arrives and the button below
         // stays disabled. Said here rather than left reading the video forever.
         <Label variant="label" tone="mute" style={styles.spec}>
-          Exporting is not built for iPhone yet
+          {copy.notOnIphone}
         </Label>
       )}
 
@@ -193,16 +189,16 @@ export default function Export() {
         <View style={styles.progress}>
           <ProgressBar fraction={done} accent={accent} />
           <Label variant="label" tone="mute">
-            {Math.round(done * 100)}% · you can leave the app
+            {copy.progress(Math.round(done * 100))}
           </Label>
-          <QuietButton title="Cancel" tone="signal" onPress={cancelExport} />
+          <QuietButton title={copy.cancel} tone="signal" onPress={cancelExport} />
         </View>
       ) : (
         <View style={styles.actions}>
           {/* At zero this opens Unlock instead of rendering. The wall is before
               the work, never after it (invariant 5). */}
           <PrimaryButton
-            title={tier.blocked ? 'Unlock to export' : 'Save to gallery'}
+            title={tier.blocked ? copy.unlockToExport : copy.saveToGallery}
             accent={accent}
             disabled={!measure || !info}
             onPress={tier.blocked ? openUnlock : save}
@@ -217,7 +213,7 @@ export default function Export() {
             style={styles.disclosure}
           >
             <Label variant="label" tone="mute">
-              {options ? 'Options ▴' : 'Options ▾'}
+              {copy.options} {options ? '▴' : '▾'}
             </Label>
           </Pressable>
 
@@ -254,7 +250,7 @@ export default function Export() {
                 ]}
               >
                 <Label variant="label" tone={alsoSrt ? 'paper' : 'mute'}>
-                  Also save .srt
+                  {copy.alsoSrt}
                 </Label>
               </Pressable>
             </View>

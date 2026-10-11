@@ -15,6 +15,7 @@ import Constants from 'expo-constants';
 import { useCallback, useState } from 'react';
 import { Alert, Linking, Platform, StyleSheet, View } from 'react-native';
 
+import { copy, useCopy } from '../i18n';
 import { markFeedbackAsked } from '../project/settings';
 import { Label, QuietButton } from './atoms';
 import {
@@ -67,6 +68,7 @@ async function open(url: string, whenNothingHandlesIt: () => void): Promise<void
 
 export function FeedbackCard({ accent, onAnswered }: { accent: string; onAnswered?: () => void }) {
   const [show, setShow] = useState(true);
+  const words = useCopy().feedback;
 
   // Marked on every route out, including the dismiss: one ask, and the Settings
   // row for anybody who thinks of something afterwards.
@@ -80,43 +82,35 @@ export function FeedbackCard({ accent, onAnswered }: { accent: string; onAnswere
     const build = buildInfo();
     answer();
     void open(feedbackMailto(build), () =>
-      Alert.alert(
-        'No mail app set up',
-        `Send it to ${FEEDBACK_EMAIL} instead, with “${feedbackSubject(build)}” as the subject.`
-      )
+      Alert.alert(words.noMailTitle, words.noMailBody(FEEDBACK_EMAIL, feedbackSubject(build)))
     );
-  }, [answer]);
+  }, [answer, words]);
 
   const tiktok = useCallback(() => {
     answer();
-    void open(TIKTOK_URL, () =>
-      Alert.alert('TikTok would not open', `The account is @${TIKTOK_HANDLE}.`)
-    );
-  }, [answer]);
+    void open(TIKTOK_URL, () => Alert.alert(words.tiktokFailed, words.tiktokHandle(TIKTOK_HANDLE)));
+  }, [answer, words]);
 
   if (!show) return null;
 
   return (
     <View style={styles.card}>
-      <Label variant="heading">Give feedback</Label>
+      <Label variant="heading">{words.title}</Label>
       <Label variant="body" tone="mute">
-        Share your ideas, suggestions, or anything you think could make Wordburn better. I read
-        every message.
+        {words.blurb}
       </Label>
-      <Label variant="body">
-        What’s working well? What could be better? Any features you’d love to see?
-      </Label>
+      <Label variant="body">{words.prompt}</Label>
 
       <View style={styles.actions}>
-        <QuietButton title="Email me" accent={accent} onPress={email} />
-        <QuietButton title="DM on TikTok" accent={accent} onPress={tiktok} />
-        <QuietButton title="Not now" onPress={answer} />
+        <QuietButton title={words.emailMe} accent={accent} onPress={email} />
+        <QuietButton title={words.dmTiktok} accent={accent} onPress={tiktok} />
+        <QuietButton title={words.notNow} onPress={answer} />
       </View>
 
       {/* The subject is already prefilled; this is for the mail app that drops it
           and for the person who writes from their laptop later. */}
       <Label variant="micro" tone="mute">
-        Keep “{SUBJECT_TAG}” in the subject and I’ll spot it.
+        {words.keepSubject(SUBJECT_TAG)}
       </Label>
     </View>
   );
@@ -133,22 +127,19 @@ export function FeedbackCard({ accent, onAnswered }: { accent: string; onAnswere
  */
 export function askHowToSendFeedback(): void {
   const build = buildInfo();
+  const words = copy().feedback;
 
-  Alert.alert(
-    'Give feedback',
-    `Share your ideas, suggestions, or anything you think could make Wordburn better. I read every message. Keep “${SUBJECT_TAG}” in the subject and I’ll spot it.`,
-    [
-      {
-        text: 'Email',
-        onPress: () =>
-          void open(feedbackMailto(build), () =>
-            Alert.alert('No mail app set up', `Send it to ${FEEDBACK_EMAIL} instead.`)
-          ),
-      },
-      { text: 'TikTok', onPress: () => void open(TIKTOK_URL, () => undefined) },
-      { text: 'Cancel', style: 'cancel' },
-    ]
-  );
+  Alert.alert(words.title, `${words.blurb} ${words.keepSubject(SUBJECT_TAG)}`, [
+    {
+      text: words.email,
+      onPress: () =>
+        void open(feedbackMailto(build), () =>
+          Alert.alert(words.noMailTitle, words.noMailShort(FEEDBACK_EMAIL))
+        ),
+    },
+    { text: words.tiktok, onPress: () => void open(TIKTOK_URL, () => undefined) },
+    { text: words.cancel, style: 'cancel' },
+  ]);
 }
 
 const styles = StyleSheet.create({

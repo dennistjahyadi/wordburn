@@ -14,8 +14,8 @@ import {
   deleteModel,
   modelSizeLabel,
 } from '../../src/asr/model-store';
+import { useCopy } from '../../src/i18n';
 import { Divider, Label, PrimaryButton, ProgressBar, QuietButton, Screen } from '../../src/ui/atoms';
-import { languages as copy } from '../../src/ui/copy';
 import { ensureLanguageReady, useModelState } from '../../src/ui/language';
 import { DEFAULT_ACCENT, space } from '../../src/ui/theme';
 
@@ -23,6 +23,8 @@ export default function Languages() {
   const insets = useSafeAreaInsets();
   const model = useModelState();
   const size = modelSizeLabel();
+  const words = useCopy();
+  const copy = words.languages;
 
   function remove() {
     Alert.alert(copy.manage.removeTitle, copy.manage.removeBody(size), [
@@ -40,7 +42,7 @@ export default function Languages() {
   return (
     <Screen>
       <View style={[styles.bar, { paddingTop: insets.top + space.sm }]}>
-        <QuietButton title="Back" onPress={() => router.back()} />
+        <QuietButton title={words.common.back} onPress={() => router.back()} />
         <Label variant="label" tone="mute">
           {copy.manage.title}
         </Label>
@@ -49,7 +51,7 @@ export default function Languages() {
 
       <View style={styles.body}>
         <View style={styles.block}>
-          <Label variant="body">English</Label>
+          <Label variant="body">{words.languageNames.en}</Label>
           <Label variant="label" tone="mute">
             {copy.manage.english}
           </Label>

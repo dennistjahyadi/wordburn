@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { NUDGE_STEP_MS, shiftAll, type Ms, type Project } from '../domain';
+import { useCopy, type Copy } from '../i18n';
 import { Label } from '../ui/atoms';
 import { space } from '../ui/theme';
 import { formatOffset } from '../ui/time';
@@ -34,6 +35,7 @@ export function ShiftSheet({
   onClose(): void;
 }) {
   const [offsetMs, setOffsetMs] = useState(project.globalOffsetMs);
+  const words = useCopy().shift;
 
   const drafted = useRef(project.globalOffsetMs);
   const announce = useRef(onChange);
@@ -64,18 +66,18 @@ export function ShiftSheet({
     <>
       <View style={styles.header}>
         <View style={styles.headerText}>
-          <Label variant="title">Shift all captions</Label>
+          <Label variant="title">{words.title}</Label>
           <Label variant="micro" tone="mute">
-            Every caption moves together. The words keep the timings they were said at.
+            {words.note}
           </Label>
         </View>
-        <SheetAction label="Apply" onPress={() => onApply(offsetMs)} tone="accent" accent={accent} />
+        <SheetAction label={words.apply} onPress={() => onApply(offsetMs)} tone="accent" accent={accent} />
       </View>
 
       <View style={styles.readout}>
         <RepeatButton
           label={`−${NUDGE_STEP_MS} ms`}
-          accessibilityLabel={`Captions ${NUDGE_STEP_MS} milliseconds earlier`}
+          accessibilityLabel={words.earlier(NUDGE_STEP_MS)}
           onStep={() => step(-NUDGE_STEP_MS)}
           onSettle={publish}
         />
@@ -83,27 +85,27 @@ export function ShiftSheet({
         <View style={styles.value}>
           <Label variant="title">{formatOffset(offsetMs)}</Label>
           <Label variant="micro" tone="mute">
-            {describeOffset(offsetMs)}
+            {describeOffset(offsetMs, words)}
           </Label>
         </View>
 
         <RepeatButton
           label={`+${NUDGE_STEP_MS} ms`}
-          accessibilityLabel={`Captions ${NUDGE_STEP_MS} milliseconds later`}
+          accessibilityLabel={words.later(NUDGE_STEP_MS)}
           onStep={() => step(NUDGE_STEP_MS)}
           onSettle={publish}
         />
       </View>
 
-      <SheetAction label="Cancel" onPress={onClose} tone="quiet" accent={accent} />
+      <SheetAction label={words.cancel} onPress={onClose} tone="quiet" accent={accent} />
     </>
   );
 }
 
 /** What the number means, in the terms the user complained in. */
-function describeOffset(offsetMs: Ms): string {
-  if (offsetMs === 0) return 'Captions land where the words were heard';
-  return offsetMs > 0 ? 'Captions land later' : 'Captions land earlier';
+function describeOffset(offsetMs: Ms, words: Copy['shift']): string {
+  if (offsetMs === 0) return words.atZero;
+  return offsetMs > 0 ? words.landLater : words.landEarlier;
 }
 
 const styles = StyleSheet.create({

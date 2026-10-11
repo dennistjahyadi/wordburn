@@ -11,6 +11,7 @@
  * arrives percent-encoded), so they are composed here and tested, and `Linking`
  * lives in `feedback.tsx` with the button that calls it.
  */
+import { copy } from '../i18n';
 import type { Settings } from '../project/settings';
 
 /**
@@ -70,7 +71,7 @@ export function feedbackBody(build: BuildInfo): string {
   if (build.model) facts.push(build.model);
 
   return [
-    'What’s working well? What could be better? Any features you’d love to see?',
+    copy().feedback.prompt,
     '',
     '',
     '—',

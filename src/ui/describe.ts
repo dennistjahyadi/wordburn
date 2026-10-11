@@ -8,11 +8,12 @@
  * of them is somebody's afternoon.
  */
 import type { Project } from '../domain';
+import { copy, currentLocale } from '../i18n';
 import { formatClock } from './time';
 
-/** `1 word`, `173 words`. */
-export function plural(count: number, singular: string, many = `${singular}s`): string {
-  return `${count} ${count === 1 ? singular : many}`;
+/** `1 word`, `173 words`, in the interface's language. */
+export function words(count: number): string {
+  return copy().common.words(count);
 }
 
 /**
@@ -31,22 +32,23 @@ export function describeBytes(bytes: number): string {
 export function describeProject(project: Project): string {
   return [
     formatClock(project.durationMs),
-    plural(project.words.length, 'word'),
+    words(project.words.length),
     madeAt(project.createdAt),
   ].join(' · ');
 }
 
 /**
- * When the project was started, in the phone's own locale and time zone.
+ * When the project was started, in the interface's language and the phone's
+ * time zone.
  *
  * The date is what separates two takes of the same script, so it is the part
  * that has to be there. The year is not: a project list is days old, not years.
  */
 function madeAt(createdAt: string): string {
   const when = new Date(createdAt);
-  if (Number.isNaN(when.getTime())) return 'date unknown';
+  if (Number.isNaN(when.getTime())) return copy().common.dateUnknown;
 
-  return when.toLocaleString(undefined, {
+  return when.toLocaleString(currentLocale(), {
     day: 'numeric',
     month: 'short',
     hour: '2-digit',

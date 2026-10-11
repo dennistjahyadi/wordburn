@@ -1,8 +1,8 @@
 /**
  * What the free tier allows.
  *
- * Pure TypeScript, and one platform read: the name of the store a payment on
- * hold is fixed in, which is the App Store on iOS and Google Play elsewhere.
+ * Pure TypeScript. The lines it returns come from the interface's dictionary,
+ * which is where the name of the store a payment on hold is fixed in lives.
  *
  * Invariant 5: whatever the limit is, the user sees it on Home before they pick
  * a video, and the Export screen never introduces a new wall. Discovering a
@@ -13,8 +13,7 @@
  * Who escapes it is `pro.ts`'s question, not this file's: a lifetime purchase or
  * a live subscription, and nothing else.
  */
-import { Platform } from 'react-native';
-
+import { copy } from '../i18n';
 import { isPro, proStatus, type SubscriptionRecord } from './pro';
 
 export type FreeTierPolicy =
@@ -111,9 +110,10 @@ export function freeTierStatus(
   // Somebody who is paying and whose card failed is not a free user who needs
   // selling to. They need to be told where to fix it, on the same line every
   // screen already reads, and the free tier applies until they do.
+  const words = copy().tier;
   if (status.kind === 'suspended') {
     return {
-      line: `Pro is on hold: update your payment in ${Platform.OS === 'ios' ? 'the App Store' : 'Google Play'}`,
+      line: words.onHold,
       blocked: false,
       captionBlocked,
       watermark: true,
@@ -127,10 +127,8 @@ export function freeTierStatus(
   // along: Home is the one place both have to be said before the picker. An
   // export wall, under a policy that has one, outranks it once it is up.
   if (captionsLeft === null || exports.blocked) return { ...exports, captionBlocked };
-  if (captionsLeft === 0) return { ...exports, line: 'Free videos used', captionBlocked };
-  const videos = captionsLeft === 1 ? '1 free video' : `${captionsLeft} free videos`;
-  const mark = exports.watermark ? ' · watermarked exports' : '';
-  return { ...exports, line: `${videos} left${mark}`, captionBlocked };
+  if (captionsLeft === 0) return { ...exports, line: words.freeVideosUsed, captionBlocked };
+  return { ...exports, line: words.freeVideosLeft(captionsLeft, exports.watermark), captionBlocked };
 }
 
 /** The export half of the status: what the next export costs a free user under each policy. */
@@ -139,15 +137,16 @@ function exportStatus(
   now: Date,
   policy: FreeTierPolicy
 ): Omit<FreeTierStatus, 'captionBlocked'> {
+  const words = copy().tier;
   if (policy.kind === 'watermark') {
-    return { line: 'Free exports carry a small watermark', blocked: false, watermark: true };
+    return { line: words.watermark, blocked: false, watermark: true };
   }
 
   if (policy.kind === 'trial') {
     const left = daysLeft(entitlement.firstRunAt, now, policy.trialDays);
-    if (left <= 0) return { line: 'Your trial has ended', blocked: true, watermark: false };
+    if (left <= 0) return { line: words.trialEnded, blocked: true, watermark: false };
     return {
-      line: left === 1 ? 'Last day of your trial' : `${left} days left in your trial`,
+      line: left === 1 ? words.trialLastDay : words.trialDaysLeft(left),
       blocked: false,
       watermark: false,
     };
@@ -157,9 +156,9 @@ function exportStatus(
   // The spec's words for this state, and the only ones: Home, Export, Saved and
   // Settings all read this line, so a second phrasing anywhere would be the app
   // describing the same fact two ways on two screens.
-  if (left === 0) return { line: 'Free exports used', blocked: true, watermark: false };
+  if (left === 0) return { line: words.freeExportsUsed, blocked: true, watermark: false };
   return {
-    line: left === 1 ? '1 free export left' : `${left} free exports left`,
+    line: words.freeExportsLeft(left),
     blocked: false,
     watermark: false,
   };

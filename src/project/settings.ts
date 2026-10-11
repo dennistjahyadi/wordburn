@@ -54,6 +54,14 @@ export interface Settings {
    * next one. Home's picker starts here and a batch starts here.
    */
   language: Language;
+  /**
+   * The language the interface is in, or null while it follows the phone.
+   *
+   * Separate from `language` because they answer different questions — what
+   * the buttons say, against what the next clip is spoken in — and only the
+   * first launch assumes the two are the same. `src/i18n/locale.ts` reads it.
+   */
+  locale: Language | null;
 }
 
 export const NEW_SETTINGS: Settings = {
@@ -64,6 +72,7 @@ export const NEW_SETTINGS: Settings = {
   styleId: DEFAULT_STYLE_ID,
   styleOverrides: {},
   language: DEFAULT_LANGUAGE,
+  locale: null,
 };
 
 function settingsFile(): File {
@@ -76,7 +85,11 @@ export function loadSettings(): Settings {
 
   try {
     const loaded = { ...NEW_SETTINGS, ...(JSON.parse(file.textSync()) as Partial<Settings>) };
-    return isLanguage(loaded.language) ? loaded : { ...loaded, language: DEFAULT_LANGUAGE };
+    return {
+      ...loaded,
+      language: isLanguage(loaded.language) ? loaded.language : DEFAULT_LANGUAGE,
+      locale: isLanguage(loaded.locale) ? loaded.locale : null,
+    };
   } catch {
     // A half-written settings file costs the user one repeated coach card, which
     // is not worth failing a screen over.
@@ -120,4 +133,9 @@ export function rememberStyle(styleId: string, styleOverrides: StyleOverrides): 
 
 export function rememberLanguage(language: Language): void {
   saveSettings({ ...loadSettings(), language });
+}
+
+/** The interface language. Null hands it back to the phone's own setting. */
+export function rememberLocale(locale: Language | null): void {
+  saveSettings({ ...loadSettings(), locale });
 }

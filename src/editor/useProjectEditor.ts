@@ -30,6 +30,7 @@ import {
   type Project,
   type Word,
 } from '../domain';
+import { copy } from '../i18n';
 import { loadEnvelope, saveProject } from '../project/store';
 
 /** How long after the last edit the project is written. */
@@ -116,7 +117,7 @@ export function useProjectEditor(
       // in the domain, so it says so and refuses to write it to disk.
       const drift = timingDrift(current.present.words, words);
       if (drift) {
-        Alert.alert('That edit moved the timing', `${label}: ${drift}. The edit was not applied.`);
+        Alert.alert(copy().editor.driftTitle, copy().editor.driftBody(label, drift));
         return;
       }
 
@@ -138,7 +139,7 @@ export function useProjectEditor(
       // left running into its neighbour.
       const spill = timingSpill(current.present.words, words, moving);
       if (spill) {
-        Alert.alert('That timing change reached too far', `${label}: ${spill}. It was not applied.`);
+        Alert.alert(copy().editor.spillTitle, copy().editor.spillBody(label, spill));
         return;
       }
 
@@ -160,7 +161,7 @@ export function useProjectEditor(
       // Shift-all moving a single word time would be invariant 1 broken by the
       // one action in the app that never needs to.
       if (next.words !== current.present.words) {
-        Alert.alert('That change touched the words', `${label} moves the offset only. It was not applied.`);
+        Alert.alert(copy().editor.touchedTitle, copy().editor.touchedBody(label));
         return;
       }
 

@@ -12,6 +12,7 @@ import { Alert, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { accentColor, projectStyle } from '../../src/domain';
+import { useCopy } from '../../src/i18n';
 import { loadEntitlement } from '../../src/policy/entitlement-store';
 import { freeTierStatus } from '../../src/policy/free-tier';
 import { loadSettings } from '../../src/project/settings';
@@ -33,6 +34,7 @@ export default function Saved() {
     seconds: string;
   }>();
   const insets = useSafeAreaInsets();
+  const copy = useCopy().saved;
 
   const project = useMemo(() => (id ? loadProject(id) : null), [id]);
   const tier = freeTierStatus(loadEntitlement());
@@ -56,14 +58,14 @@ export default function Saved() {
 
     try {
       if (!(await Sharing.isAvailableAsync())) {
-        Alert.alert('Nothing to share with', 'This phone has no app that takes a video.');
+        Alert.alert(copy.nothingToShareTitle, copy.nothingToShareBody);
         return;
       }
       await Sharing.shareAsync(`file://${path}`, { mimeType: 'video/mp4' });
     } catch (error) {
-      Alert.alert('That could not be shared', error instanceof Error ? error.message : String(error));
+      Alert.alert(copy.couldNotShare, error instanceof Error ? error.message : String(error));
     }
-  }, [path]);
+  }, [copy, path]);
 
   return (
     <Screen>
@@ -74,25 +76,25 @@ export default function Saved() {
           </Label>
         </View>
 
-        <Label variant="title">Saved to gallery</Label>
+        <Label variant="title">{copy.title}</Label>
         <Label variant="body" tone="mute" style={styles.centre}>
           {name}
           {bytes ? ` · ${describeBytes(Number(bytes))}` : ''}
-          {seconds ? ` · rendered in ${seconds}s` : ''}
+          {seconds ? ` · ${copy.renderedIn(seconds)}` : ''}
         </Label>
         {srt ? (
           <Label variant="micro" tone="mute" style={styles.centre}>
-            {srt} is in {Platform.OS === 'ios' ? 'Files, under On My iPhone › Wordburn' : 'your Downloads'}
+            {copy.srtIn(srt, Platform.OS === 'ios' ? copy.placeIos : copy.placeAndroid)}
           </Label>
         ) : null}
 
         <View style={styles.actions}>
-          <PrimaryButton title="Share" accent={accent} onPress={share} />
+          <PrimaryButton title={copy.share} accent={accent} onPress={share} />
           <QuietButton
-            title="Back to editor"
+            title={copy.backToEditor}
             onPress={() => router.replace({ pathname: '/project/[id]', params: { id: String(id) } })}
           />
-          <QuietButton title="Home" onPress={() => router.replace('/')} />
+          <QuietButton title={copy.home} onPress={() => router.replace('/')} />
         </View>
 
         {/* One ask per screen. On the single export where the feedback card is

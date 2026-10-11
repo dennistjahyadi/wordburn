@@ -23,6 +23,7 @@
 import { ReactNode, useCallback, useEffect, useRef } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
+import { copy } from '../i18n';
 import { Label } from '../ui/atoms';
 import { useKeyboardInset } from '../ui/keyboard';
 import { useReducedMotion } from '../ui/motion';
@@ -40,7 +41,7 @@ export function Sheet({ onClose, children }: { onClose: () => void; children: Re
           here that can give up the height the keyboard took. */}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Close"
+        accessibilityLabel={copy().common.close}
         style={styles.backdrop}
         onPress={onClose}
       />

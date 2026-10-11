@@ -86,6 +86,12 @@ Polish 4.6, French 5.3. French is 10.8 on Common Voice 15 against Indonesian's
 new ones were written from knowledge of the languages and have not been read by
 a native speaker. **None of the four has run anywhere**, not even the emulator.
 
+**The interface is in the same nine languages** (slice 20, `src/i18n/`),
+chosen on Welcome and in Settings → App language, and the interface language
+is a separate setting from the spoken one. The translations carry the same
+caveat as the stopword lists: written from knowledge of the languages, read
+by no native speaker, drawn on no device.
+
 Out of scope: languages beyond those nine, language detection, translation,
 cloud anything, accounts, trimming inside the editor, auto clip and anything
 else that cuts a long video into shorts (see slice 18), multiple speakers, emoji or B-roll or auto-zoom, iOS
@@ -493,12 +499,67 @@ properties rather than presets.
     The simulator was driven by an XCUITest "driver" in the scratchpad, since
     nothing on this Mac can tap a simulator; it is not in the repository.
 
+20. The interface speaks all nine languages, and Welcome asks which.
+    **Run on an Android 16 emulator (debug build), not on the A54.** Typecheck
+    and 648 unit tests pass, and no translation has been read by a native
+    speaker. On the emulator, 2026-10-11: Welcome drew all nine chips in three
+    rows with Get started above the fold, and switched to French, German and
+    Polish under the finger; Spanish carried through Get started (the
+    low-memory alert came up in Spanish, as this emulator is under the 4.5 GiB
+    line), the style step, Home and Settings; Settings → App language switched
+    the open screen to German live; and the default-style screen drew its
+    preview and tiles with German preset names. Two layouts broke in Spanish
+    and were fixed and redrawn: the free-tier line on Home ran off both edges
+    (`FreeTierLine` now wraps), and the Pro row's detail in Settings ran off
+    the right (`Row` details now shrink and wrap). The sample line on the style
+    screen is still English — it is caption content, not chrome.
+    `src/i18n/` is the whole of it: `en.ts` is the shape (`Copy`), the eight
+    others are typed against it so a missing line is a compile error, and
+    `copy()` / `useCopy()` hand back the dictionary for the language in force.
+    Every string the chrome says went through it — screens, sheets, alerts,
+    the foreground-service notification titles, the lines `freeTierStatus`
+    returns, the undo-step names, the download and export failures. The one
+    file that held copy before, `src/ui/copy.ts`, is gone.
+    **Welcome holds the picker now**, nine chips in each language's own name,
+    preselected from the phone through `Intl`, and the separate language step
+    (`app/language.tsx`) is deleted. The choice does two things at once: it
+    sets the interface language (`settings.locale`) and the first spoken
+    language (`settings.language`), and the download for a language that
+    needs it is offered on Get started and runs while the style is picked.
+    Settings grew an "App language" row, a sheet of the same chips, that
+    changes only the interface. The two come apart there and on Home.
+    Every mounted screen re-renders on a change through `useLocale`
+    (`useSyncExternalStore`), so Home under Settings is already in the new
+    language when Settings is left.
+    Preset names are translated where they describe ("Box highlight" →
+    "Encadré") and kept where they name ("Focus", "Neon", "Rocket"), through
+    `presetName`, which falls back to `STYLE_PRESETS`; the domain was not
+    touched. Polish counts through its own three-form rule; Indonesian has
+    no plural and says the number and the noun.
+    What a phone has to answer: whether German and Polish — the two that run
+    longest — fit the bar, the chips, the word-sheet tiles and the style
+    sheet at 130% font scale; whether the Welcome chips wrap into three rows
+    on the A54 without pushing Get started under the fold; and whether a
+    phone set to Indonesian, which Android reports as `in`, lands on
+    Indonesian. Only a native speaker can answer the rest.
+
 Every slice runs as a release build on the Galaxy A54 before it is called done.
 iOS has no such device, so its rule is the simulator in a Release build.
 
 ## Known issues
 
-Eight are left, and none of them can be closed from this machine.
+Nine are left, and none of them can be closed from this machine.
+
+- **No translation has been read by a native speaker, and only Welcome, Home,
+  Settings and the style screen have been drawn in another language**, on an
+  emulator. Slice 20 put the whole interface in
+  nine languages from knowledge of the languages, the same way the stopword
+  lists were written, and `copy.test.ts` can only prove the shape: every key
+  present, every function returning a non-empty string, the sample keys that
+  must differ from English differing. It cannot prove a sentence reads as a
+  sentence. The eight files in `src/i18n/` want a native reader each, and the
+  German and Polish ones want a phone first — they run a third longer than
+  English and the sheets were laid out for English.
 
 - **Batch has never run on a phone**, and the numbers above are an M3
   emulator's. What the A54 has to answer: a batch of twenty — whether the
@@ -1161,22 +1222,45 @@ has to argue with that gap.
   guarding with it reports "no mail app" on phones that have one. `openURL` inside
   a `try` is the check, and the fallback alert hands over the address itself: a
   dead button on the one screen asking for help is worse than no button.
-- **First launch asks for a language, then a style, once.** Welcome's Get
-  started goes to `/language`, then to Settings → Default style in its
+- **First launch asks for a language on Welcome itself, then a style, once.**
+  The language is nine chips on the Welcome screen, each in the language's own
+  name, preselected from the phone through `Intl` when it is one of the nine
+  (Android reports Indonesian as `in`). Tapping one changes the language the
+  screen is written in under the finger, and Get started remembers it as the
+  first spoken language too, then goes to Settings → Default style in its
   onboarding form (`?onboarding=1`: Continue instead of Back, Continue goes
   Home), because a choice made once is a choice nobody makes again clip after
   clip. Every new video starts in both, and a batch starts on the default
-  style rather than the last saved look, so
-  the default is the default everywhere.
-  The language step preselects the phone's own language through `Intl` when it
-  is one of the nine (Android reports Indonesian as `in`), and draws the same
-  rows as Home's sheet, so "Pro" and "Download" are on the row before anything
-  is picked. A free user who picks a Pro language is offered Pro or English and
-  nothing is saved in between: a Home chip on a language that asks for money on
-  every pick is a nag, not a setting. Subscribing from there comes back to the
-  step (`from: 'onboarding'`), not Home, so the paid-for choice is not dropped.
-  A subscriber is offered the 874 MB download on the spot, and it runs while
-  they pick a style. **Not run anywhere**, emulator included.
+  style rather than the last saved look, so the default is the default
+  everywhere.
+  It was a step of its own after Welcome, asking only what the videos are
+  spoken in, which meant a French speaker read a whole screen of English
+  before reaching the one that let them say so. One question answers both
+  for nearly everybody, and the two come apart in Settings (App language) and
+  on Home (Spoken language) for anybody who reads one language and records
+  in another. A language that needs the 874 MB download is offered it on Get
+  started, and it runs while they pick a style. **Not run anywhere**,
+  emulator included.
+- **The interface language and the spoken language are two settings, and
+  only Welcome assumes they agree.** `settings.locale` is what the buttons
+  say; `settings.language` is what the next clip is spoken in and what
+  whisper is told. The nine interface languages are the nine caption
+  languages on purpose: a tenth caption language without an interface in it
+  would ship an app that can caption Turkish and cannot tell a Turkish
+  speaker how, so `Locale` is `Language` and the two lists are one list.
+  `locale` is null until chosen, meaning "follow the phone", so Welcome is
+  already in the right language for most people before they touch it.
+- **Strings live in `src/i18n/`, nowhere else, and the domain never reads
+  them.** `copy()` is for code outside a render — a store's alert, a queue's
+  error, a notification title — and `useCopy()` is for components, which
+  re-render when the language changes. A preset's name, a language's native
+  name and a stopword list are data about the world and stay in `src/domain`;
+  `presetName` translates the descriptive preset names ("Box highlight") and
+  leaves the proper nouns ("Focus") alone, falling back to `STYLE_PRESETS`.
+  `en.ts` carries the type, so a dictionary missing a line does not compile;
+  what a compiler cannot see — a line copied from English and never
+  translated, a count function that says nothing for some number — is
+  `copy.test.ts`'s job.
 - **Processing moves while it works** (`src/ui/working.tsx`): a level meter
   beside the stage, a bar that eases forward with a light crossing it, lines
   that rise in with the newest word in the box highlight, and before the first
@@ -1235,7 +1319,9 @@ once there has been one. The export stays because Share needs a file to hand
 over and the gallery copy is a `content://` URI the share sheet cannot always
 take; the next export of that project overwrites it. `settings.json`
 sits outside them all and holds what is true of the app rather than of a clip: the
-coach card, and the style the next project starts in.
+coach card, the style the next project starts in, the language the next clip
+is spoken in (`language`), and the language the interface is written in
+(`locale`, null while it follows the phone).
 
 The video is copied in at pick time and the project never refers to anything
 outside its own directory. The picker does not hand back the file in the gallery,

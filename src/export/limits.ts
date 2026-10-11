@@ -6,6 +6,7 @@
  * burn-in module and the foreground service on the way in. These two are the
  * parts worth pinning.
  */
+import { copy } from '../i18n';
 
 /**
  * The encoder's own bitrate rule, mirrored.
@@ -56,7 +57,7 @@ export function describeExportFailure(error: unknown): string {
   const lower = message.toLowerCase();
 
   if (lower.includes('enospc') || lower.includes('no space') || lower.includes('out of space')) {
-    return 'This phone ran out of space while saving. Free some up and try again.';
+    return copy().export.outOfSpace;
   }
   if (
     lower.includes('codec') ||
@@ -64,7 +65,7 @@ export function describeExportFailure(error: unknown): string {
     lower.includes('encoder') ||
     lower.includes('could not be drawn')
   ) {
-    return 'Couldn’t render this video on this phone. Try 720p.';
+    return copy().export.couldNotRender;
   }
   return message;
 }

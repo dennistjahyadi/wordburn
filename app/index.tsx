@@ -27,7 +27,7 @@ import { currentBatch, subscribeBatch } from '../src/batch/queue';
 import { DEV_TOOLS, describeOverride, QA_BUILD } from '../src/policy/dev-override';
 import { isPro } from '../src/policy/pro';
 import { loadProOverride, loadProStatus } from '../src/policy/entitlement-store';
-import { batch as batchCopy, freeVideos as tierCopy } from '../src/ui/copy';
+import { useCopy } from '../src/i18n';
 import { requestNotifications } from '../src/native/foreground-service';
 import { freeTierStatus, recordCaption } from '../src/policy/free-tier';
 import { loadEntitlement, loadStoredEntitlement, saveEntitlement } from '../src/policy/entitlement-store';
@@ -36,7 +36,7 @@ import { loadSettings, rememberLanguage } from '../src/project/settings';
 import { makeThumbnail } from '../src/project/thumbnail';
 import { Label, PrimaryButton, Screen } from '../src/ui/atoms';
 import { Curtain } from '../src/ui/curtain';
-import { describeProject, plural } from '../src/ui/describe';
+import { describeProject, words as countWords } from '../src/ui/describe';
 import { ensureLanguageReady, LanguageField } from '../src/ui/language';
 import { FreeTierLine } from '../src/ui/tier';
 import { color, DEFAULT_ACCENT, MIN_TOUCH, radius, space } from '../src/ui/theme';
@@ -53,6 +53,9 @@ export default function Home() {
   const [language, setLanguage] = useState<Language>(() => loadSettings().language);
   const [batch, setBatch] = useState<Batch | null>(currentBatch);
   useEffect(() => subscribeBatch(setBatch), []);
+  const words = useCopy();
+  const batchCopy = words.batch;
+  const tierCopy = words.freeVideos;
 
   useFocusEffect(
     useCallback(() => {
@@ -78,8 +81,8 @@ export default function Home() {
     // Read fresh rather than off `status`: Pro may have landed since focus.
     if (freeTierStatus(loadEntitlement()).captionBlocked) {
       Alert.alert(tierCopy.title, tierCopy.body, [
-        { text: 'Not now', style: 'cancel' },
-        { text: 'See Pro', onPress: () => router.push({ pathname: '/unlock', params: { from: 'home' } }) },
+        { text: words.common.notNow, style: 'cancel' },
+        { text: words.common.seePro, onPress: () => router.push({ pathname: '/unlock', params: { from: 'home' } }) },
       ]);
       return;
     }
@@ -113,7 +116,7 @@ export default function Home() {
       router.push(`/processing/${project.id}`);
     } catch (error) {
       setPicking(false);
-      Alert.alert('That video could not be opened', describe(error));
+      Alert.alert(words.home.couldNotOpen, describe(error));
     }
   }
 
@@ -121,8 +124,8 @@ export default function Home() {
   function proOnly(title: string, body: string, from: string): boolean {
     if (isPro(loadProStatus())) return true;
     Alert.alert(title, body, [
-      { text: 'Not now', style: 'cancel' },
-      { text: 'See Pro', onPress: () => router.push({ pathname: '/unlock', params: { from } }) },
+      { text: words.common.notNow, style: 'cancel' },
+      { text: words.common.seePro, onPress: () => router.push({ pathname: '/unlock', params: { from } }) },
     ]);
     return false;
   }
@@ -136,7 +139,7 @@ export default function Home() {
     if (!proOnly(batchCopy.proTitle, batchCopy.proBody, 'batch')) return;
     if (batch && !summarize(batch).finished) {
       Alert.alert(batchCopy.busyTitle, batchCopy.busyBody, [
-        { text: 'OK', style: 'cancel' },
+        { text: words.common.ok, style: 'cancel' },
         { text: batchCopy.viewQueue, onPress: () => router.push('/batch') },
       ]);
       return;
@@ -164,7 +167,7 @@ export default function Home() {
       router.push('/batch/new');
     } catch (error) {
       setPicking(false);
-      Alert.alert('Those videos could not be opened', describe(error));
+      Alert.alert(words.home.couldNotOpenMany, describe(error));
     }
   }
 
@@ -180,12 +183,12 @@ export default function Home() {
     // Named, because two clips of the same length with the same number of words
     // look identical in a dialog and only one of them is the one being deleted.
     Alert.alert(
-      'Delete this project?',
-      `${describeProject(project)}\n\nThe transcript goes with it. The video on your phone is not touched.`,
+      words.home.deleteTitle,
+      words.home.deleteBody(describeProject(project)),
       [
-        { text: 'Keep', style: 'cancel' },
+        { text: words.common.keep, style: 'cancel' },
         {
-          text: 'Delete',
+          text: words.common.delete,
           style: 'destructive',
           onPress: () => {
             deleteProject(project.id);
@@ -213,7 +216,7 @@ export default function Home() {
               <Label variant="display">Wordburn</Label>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Settings"
+                accessibilityLabel={words.home.settings}
                 onPress={() => router.push('/settings')}
                 style={({ pressed }) => [styles.settings, { opacity: pressed ? 0.6 : 1 }]}
               >
@@ -223,7 +226,7 @@ export default function Home() {
               </Pressable>
             </View>
             <Label variant="body" tone="mute" style={styles.blurb}>
-              Caption one clip, or queue a batch of them.
+              {words.home.blurb}
             </Label>
 
             <View style={styles.action}>
@@ -244,7 +247,7 @@ export default function Home() {
                 <View style={styles.cardRule} />
                 <View style={styles.cardActions}>
                   <PrimaryButton
-                    title="New video"
+                    title={words.home.newVideo}
                     onPress={pickVideo}
                     accent={DEFAULT_ACCENT}
                     busy={picking}
@@ -261,7 +264,7 @@ export default function Home() {
                   style={({ pressed }) => [styles.devRow, { opacity: pressed ? 0.6 : 1 }]}
                 >
                   <Label variant="micro" style={{ color: color.signal }}>
-                    {[QA_BUILD ? 'QA build' : null, loadProOverride().kind !== 'play' ? `Pro override: ${describeOverride(loadProOverride())}` : null]
+                    {[QA_BUILD ? words.home.qaBuild : null, loadProOverride().kind !== 'play' ? words.home.proOverride(describeOverride(loadProOverride())) : null]
                       .filter(Boolean)
                       .join(' · ')}
                   </Label>
@@ -294,7 +297,7 @@ export default function Home() {
 
             {projects.length > 0 ? (
               <Label variant="label" tone="mute" style={styles.listHead}>
-                On this phone
+                {words.home.onThisPhone}
               </Label>
             ) : null}
           </View>
@@ -304,7 +307,7 @@ export default function Home() {
         )}
       />
 
-      {picking ? <Curtain title="Getting your video ready" note="A long clip takes a few seconds." /> : null}
+      {picking ? <Curtain title={words.home.curtainTitle} note={words.home.curtainNote} /> : null}
     </Screen>
   );
 }
@@ -364,11 +367,12 @@ function ProjectRow({
 }
 
 function StatusLine({ project, accent }: { project: Project; accent: string }) {
+  const words = useCopy();
   if (project.status === 'failed') {
     const pipeline = loadPipeline(project.id);
     return (
       <Label variant="label" tone="signal" numberOfLines={2}>
-        {pipeline?.error ?? 'Transcription stopped'} · tap to try again
+        {pipeline?.error ?? words.home.stopped} · {words.home.tapToRetry}
       </Label>
     );
   }
@@ -376,7 +380,7 @@ function StatusLine({ project, accent }: { project: Project; accent: string }) {
   if (project.status === 'ready') {
     return (
       <Label variant="label" tone="mute">
-        {plural(project.words.length, 'word')} · ready
+        {countWords(project.words.length)} · {words.home.ready}
       </Label>
     );
   }
